@@ -1,5 +1,5 @@
 function X = fbm(t,H)
-    N = length(t); C_N = [];
+    N = length(t); C_N = zeros(N);
     for i = 1:N
         for j = 1:N
             ti = t(i); tj = t(j);

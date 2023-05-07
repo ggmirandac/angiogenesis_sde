@@ -2,8 +2,8 @@ clc, close all
 addpath("./functions/")
 randn('state',100)
 
-H = 0.5;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
-nReps = 1e0;
+H = 0.9;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
+nReps = 1e1;
 Xdata{nReps} = [];
 
 % Initialize time steps
@@ -15,7 +15,7 @@ for ix = 1:nReps
     % based on the empirical data extracted
     % from stokes and lauffenburger
     beta = 1/3; % h^-1
-    alpha = 40 * 1/3; %µm^2 h-3
+    alpha = 40 ; %µm^2 h-3
     % we define this parameter arbitrarialy
     kappa = 10 ;
     
@@ -82,9 +82,9 @@ for ix = 1:nReps
     tSpan = linspace(0,1,L);    
     Xdata{ix} = [Xem(1,:);Xem(2,:);tSpan];    
 end
-plot(Theta)
-return
-subplot(1,3,1)
+%plot(Theta)
+%return
+figure(1)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
     plot(Xtemp(1,:),Xtemp(2,:),'-.b');
@@ -94,7 +94,7 @@ axis tight
 xlabel('X position')
 ylabel('Y position')
 
-subplot(1,3,2)
+figure(2)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
     plot(Xtemp(3,:),Xtemp(1,:),'-.b');
@@ -104,7 +104,7 @@ axis tight
 xlabel('time')
 ylabel('X position')
 
-subplot(1,3,3)
+figure(3)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
     plot(Xtemp(3,:),Xtemp(2,:),'-.b');

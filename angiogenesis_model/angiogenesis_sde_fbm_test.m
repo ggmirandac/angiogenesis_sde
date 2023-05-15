@@ -2,7 +2,7 @@ clc, close all
 addpath("./functions/")
 randn('state',100)
 
-H = 0.9;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
+H = 0.5;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
 nReps = 1e1;
 Xdata{nReps} = [];
 
@@ -15,7 +15,7 @@ for ix = 1:nReps
     % based on the empirical data extracted
     % from stokes and lauffenburger
     beta = 1/3; % h^-1
-    alpha = 40 ; %µm^2 h-3
+    alpha = 40 * 1/3; %µm^2 h-3
     % we define this parameter arbitrarialy
     kappa = 10 ;
     
@@ -63,6 +63,7 @@ for ix = 1:nReps
     Theta = [];
     for j = 1:L
         winc = sum(dW(:,R*(j-1)+1:R*j),2);
+        %winc = dW(j);
         DA = 1/10;
         Vtemp = Vtemp + (-beta * Vtemp + kappa * DA + sin(abs(phi/2)))*Dt + sqrt(alpha)*winc;
         Vem(:,j) = Vtemp;

@@ -8,17 +8,18 @@ T = 1; % time from 0 to 1
 N = 500; % there are going to be 500 steps
 dt = T/N; % the discrete steps of the brownian
 %fractional brownian motion
-H = 0.5;
+H = 0.1;
 
 R = 4;
 Dt = R*dt;
 L = N/R;
 x_100 = [];
+dw_vect = []
 for i = 1:100
     dW = fbm([0:dt:T],H)';
-    
+   
     % function parameters
-    a = 10;
+    a = 0;
     
     % initiation
     
@@ -32,14 +33,16 @@ for i = 1:100
         Xem(j) = Xtemp;
     end 
     x_100(i,:) = Xem;
+    dw_vect(i,:) = dW;
 end 
 x_100;
 
 x_100_mean = mean(x_100);
 
 
-plot([0:1:L],[0,x_100(1,:)])
+
+plot([0:dt:T],[dw_vect(1,:)])
 hold on
-for i = 2:length(x_100)
-    plot([0:1:L],[0,x_100(i,:)])
+for i = 2:length(dw_vect)
+    plot([0:dt:T],[dw_vect(i,:)])
 end

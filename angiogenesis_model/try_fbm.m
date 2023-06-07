@@ -16,6 +16,7 @@ L = N/R;
 x_100 = [];
 for i = 1:100
     dW = fbm([0:dt:T],H)';
+    dW = diff(dW);
     
     % function parameters
     a = 10;
@@ -38,7 +39,7 @@ x_100;
 x_100_mean = mean(x_100);
 
 
-plot([0:1:L],[0,x_100(1,:)])
+plot([0:Dt:T],[0,x_100(1,:)])
 hold on
 for i = 2:length(x_100)
     plot([0:1:L],[0,x_100(i,:)])

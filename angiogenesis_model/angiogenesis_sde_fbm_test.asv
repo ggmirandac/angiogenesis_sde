@@ -1,15 +1,15 @@
 clc, close all
 addpath("./functions/")
-randn('state',100)
+randn('state',9r)
 
-H = 0.1;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
+H = 0.9;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
 nReps = 1e1;
 Xdata{nReps} = [];
 Da_data{nReps} = [];
 data_time = [];
 
 % Initialize time steps
-T = 1; % time from 0 to 1
+T = 3; % time from 0 to 1
 N = 500; % there are going to be 500 steps
 dt = T/N; % the discrete steps of the brownian
 
@@ -81,9 +81,9 @@ for ix = 1:nReps
         end
         DA_list(j) = DA;
 
-        if Xtemp >= 4
+        if Xtemp >= 30
             time = j;
-        elseif Xtemp <= -4
+        elseif Xtemp <= -30
             time = j;
         end
     end
@@ -151,5 +151,5 @@ xlabel('time')
 ylabel('Y position')
 
 figure(5)
-plot(1:nReps, data_time, 'Color',cm(1,:),'Marker','*','DisplayName',name, ...
-        'MarkerSize',3,'LineStyle',)
+plot(1:nReps, data_time, 'Color',cm(1,:),'Marker','pentagram','DisplayName',name, ...
+        'MarkerSize',10,'LineStyle','none')

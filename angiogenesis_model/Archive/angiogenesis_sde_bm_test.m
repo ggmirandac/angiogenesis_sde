@@ -1,19 +1,15 @@
 clc, close all
 addpath("./functions/")
-randn('state',1000)
+randn('state',100)
 
-H = 0.1;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
+H = 0.5;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
 nReps = 1e1;
 Xdata{nReps} = [];
-Da_data{nReps} = [];
-
 
 % Initialize time steps
 T = 1; % time from 0 to 1
 N = 500; % there are going to be 500 steps
 dt = T/N; % the discrete steps of the brownian
-
-
 
 for ix = 1:nReps    
     % based on the empirical data extracted
@@ -24,8 +20,11 @@ for ix = 1:nReps
     kappa = 10 ;
     
     %Fractional Brownian Path
-    %Now we define a fractional browian motion
-    dW = sqrt(dt) * randn(2,N);
+
+    % each row correspond with a spatial variable
+    dW = sqrt(dt)*randn(2,N);
+    % Now we define the brownian path by the 
+    % comulative sum of dW 
     W = cumsum(dW);
     
     %Now we plot the brownian walk for the x and y variables to see if they make sense
@@ -53,15 +52,20 @@ for ix = 1:nReps
    
     
    % These equations have been implemented in the functions that are in the folder functions
-
+   % The paremeters for the equation for the attractant are
+    a = 5;
+    b = 10^5;
+    c = 0.2;
+    da = [];
+    for i = 1:100
+        da(i) = logistic_decay(a,b,c,i);
+    end
     % plot([1:100],da(:))    
     % We beging the for loop for the model
     Theta = [];
-    DA_list = [];
     for j = 1:L
         winc = sum(dW(:,R*(j-1)+1:R*j),2);
-        %winc = dW(j);
-        DA = gradient_div(Xtemp(1,:),Xtemp(2,:),9/10);
+        DA = 1/10;
         Vtemp = Vtemp + (-beta * Vtemp + kappa * DA + sin(abs(phi/2)))*Dt + sqrt(alpha)*winc;
         Vem(:,j) = Vtemp;
         Xtemp = Xtemp + Vtemp * Dt;
@@ -75,63 +79,39 @@ for ix = 1:nReps
             phi = calculate_phi( xj, yj , xj, 3, theta);
             Theta = [Theta,theta];
         end
-        DA_list(j) = DA;
     end
     % We see the array of solutions for the position    
     tSpan = linspace(0,1,L);    
     Xdata{ix} = [Xem(1,:);Xem(2,:);tSpan];    
-    DA_data{ix} = [DA_list; tSpan];
-
 end
 %plot(Theta)
 %return
-figure(4)
-cm = jet(nReps);
-for jx = 1:nReps
-    
-    name = ['Reps =',num2str(jx)];
-    da_rep = DA_data{jx};
-    plot(da_rep(2,:),da_rep(1,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
-    hold on
-end
-axis tight
-xlabel("Time")
-legend show
-ylabel("Gradient Value")
-
 figure(1)
+
 for jx = 1:nReps
     Xtemp = Xdata{jx};
-    name = ['Reps =',num2str(jx)];
-    plot(Xtemp(1,:),Xtemp(2,:),'Color', cm(jx,:),'LineStyle','-.','DisplayName',name);
-    hold on
+    plot(Xtemp(1,:),Xtemp(2,:),'-.b'); hold on
 end
 axis tight
-legend show
 xlabel('X position')
 ylabel('Y position')
 
 figure(2)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
-    name = ['Reps =',num2str(jx)];
-    plot(Xtemp(3,:),Xtemp(1,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
-    hold on
+    plot(Xtemp(3,:),Xtemp(1,:),'-.b'); hold on
 end
 axis tight
 xlabel('time')
-legend show
 ylabel('X position')
 
 figure(3)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
-    name = ['Reps =',num2str(jx)];
-    plot(Xtemp(3,:),Xtemp(2,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
-    hold on
+    plot(Xtemp(3,:),Xtemp(2,:),'-.b'); hold on
 end
 axis tight
-legend show
 xlabel('time')
 ylabel('Y position')
+
 

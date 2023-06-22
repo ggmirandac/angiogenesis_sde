@@ -9,7 +9,7 @@ N = 500; % there are going to be 500 steps
 dt = T/N; % the discrete steps of the brownian
 %brownina motion
 x_100 = []
-for i = 1:100
+for i = 1:10000
     dW = sqrt(dt)*randn(1,N);
     
     W = cumsum(dW);
@@ -39,6 +39,3 @@ end
 x_100_mean = mean(x_100)
 
 plot([0:1:L],[0,x_100_mean])
-
-for i = 1:length(x_100)
-    

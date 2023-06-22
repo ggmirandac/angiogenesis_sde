@@ -88,50 +88,41 @@ end
 figure(4)
 cm = jet(nReps);
 for jx = 1:nReps
-    
-    name = ['Reps =',num2str(jx)];
     da_rep = DA_data{jx};
-    plot(da_rep(2,:),da_rep(1,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
+    plot(da_rep(2,:),da_rep(1,:),'Color',cm(jx,:),'LineStyle','-.');
     hold on
 end
 axis tight
 xlabel("Time")
-legend show
 ylabel("Gradient Value")
 
 figure(1)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
-    name = ['Reps =',num2str(jx)];
-    plot(Xtemp(1,:),Xtemp(2,:),'Color', cm(jx,:),'LineStyle','-.','DisplayName',name);
+    plot(Xtemp(1,:),Xtemp(2,:),'Color', cm(jx,:),'LineStyle','-.');
     hold on
 end
 axis tight
-legend show
 xlabel('X position')
 ylabel('Y position')
 
 figure(2)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
-    name = ['Reps =',num2str(jx)];
-    plot(Xtemp(3,:),Xtemp(1,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
+    plot(Xtemp(3,:),Xtemp(1,:),'Color',cm(jx,:),'LineStyle','-.');
     hold on
 end
 axis tight
 xlabel('time')
-legend show
 ylabel('X position')
 
 figure(3)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
-    name = ['Reps =',num2str(jx)];
-    plot(Xtemp(3,:),Xtemp(2,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
+    plot(Xtemp(3,:),Xtemp(2,:),'C');
     hold on
 end
 axis tight
-legend show
 xlabel('time')
 ylabel('Y position')
 

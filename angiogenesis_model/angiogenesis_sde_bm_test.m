@@ -9,8 +9,8 @@ Da_data{nReps} = [];
 
 
 % Initialize time steps
-T = 1; % time from 0 to 1
-N = 500; % there are going to be 500 steps
+T = 3; % time from 0 to 1
+N = 2000; % there are going to be 500 steps
 dt = T/N; % the discrete steps of the brownian
 
 
@@ -61,7 +61,7 @@ for ix = 1:nReps
     for j = 1:L
         winc = sum(dW(:,R*(j-1)+1:R*j),2);
         %winc = dW(j);
-        DA = gradient_div(Xtemp(1,:),Xtemp(2,:),9/10);
+        DA = gradient_div(Xtemp(1,:),Xtemp(2,:),2e-14);
         Vtemp = Vtemp + (-beta * Vtemp + kappa * DA + sin(abs(phi/2)))*Dt + sqrt(alpha)*winc;
         Vem(:,j) = Vtemp;
         Xtemp = Xtemp + Vtemp * Dt;
@@ -86,7 +86,7 @@ end
 %plot(Theta)
 %return
 figure(4)
-cm = jet(nReps);
+cm = winter(nReps);
 for jx = 1:nReps
     
     name = ['Reps =',num2str(jx)];
@@ -103,13 +103,15 @@ figure(1)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
     name = ['Reps =',num2str(jx)];
-    plot(Xtemp(1,:),Xtemp(2,:),'Color', cm(jx,:),'LineStyle','-.','DisplayName',name);
+    plot(Xtemp(1,:),Xtemp(2,:),'Color', cm(jx,:),'LineStyle','-.','DisplayName',name, ...
+        'LineWidth',2);
     hold on
 end
 axis tight
 legend show
 xlabel('X position')
 ylabel('Y position')
+title('Angiogenesis based on Brownian Motion')
 
 figure(2)
 for jx = 1:nReps
@@ -127,7 +129,8 @@ figure(3)
 for jx = 1:nReps
     Xtemp = Xdata{jx};
     name = ['Reps =',num2str(jx)];
-    plot(Xtemp(3,:),Xtemp(2,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
+    plot(Xtemp(3,:),Xtemp(2,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name, ...
+        'LineWidth', 2);
     hold on
 end
 axis tight

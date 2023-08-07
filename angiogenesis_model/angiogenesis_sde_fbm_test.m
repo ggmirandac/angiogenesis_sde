@@ -1,6 +1,6 @@
 clc, close all
 addpath("./functions/")
-randn('state',9)
+
 
 H = 0.9;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
 nReps = 1e1;
@@ -10,7 +10,7 @@ data_time = [];
 
 % Initialize time steps
 T = 3; % time from 0 to 1
-N = 500; % there are going to be 500 steps
+N = 2000; % there are going to be 500 steps
 dt = T/N; % the discrete steps of the brownian
 
 for ix = 1:nReps    
@@ -65,7 +65,7 @@ for ix = 1:nReps
     for j = 1:L
         winc = sum(dW(:,R*(j-1)+1:R*j),2);
         %winc = dW(j);
-        DA = gradient_div(Xtemp(1,:), Xtemp(2,:),9/10);
+        DA = gradient_div(Xtemp(1,:), Xtemp(2,:),2e-14);
         Vtemp = Vtemp + (-beta * Vtemp + kappa * DA + sin(abs(phi/2)))*Dt + sqrt(alpha)*winc;
         Vem(:,j) = Vtemp;
         Xtemp = Xtemp + Vtemp * Dt;
@@ -96,7 +96,7 @@ end
 %plot(Theta)
 %return
 
-cm = winter(nReps);
+cm = jet(nReps);
 figure(4)
 for jx = 1:nReps
     
@@ -116,7 +116,7 @@ for jx = 1:nReps
     Xtemp = Xdata{jx};
     name = ['Reps =',num2str(jx)];
     plot(Xtemp(1,:),Xtemp(2,:),'Color', cm(jx,:),'LineStyle','-.','DisplayName',name, ...
-        'LineWidth',3);
+        'LineWidth',2);
     hold on
 end
 axis tight

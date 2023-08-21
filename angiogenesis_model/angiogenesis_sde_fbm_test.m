@@ -79,7 +79,7 @@ for ix = 1:nReps
             phi = calculate_phi( xj, yj , xj, 3, theta);
             Theta = [Theta,theta];
         end
-        DA_list(j) = DA;
+        DA_list(: m,j) = DA;
 
         if Xtemp >= 30
             time = j;

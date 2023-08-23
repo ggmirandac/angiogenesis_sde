@@ -2,6 +2,7 @@ clc, close all
 addpath("./functions/")
 randn('seed', 1000)
 
+H = 0.9;
 nReps = 10000;
 Xdata{nReps} = [];
 Da_data{nReps} = [];
@@ -9,8 +10,8 @@ Theta_data{nReps} = [];
 Phi_data{nReps} = [];
 V_data{nReps} = [];
 Time_possition = zeros(1,nReps);
-file_name_hist = fullfile('./figures','histogram_brownianmotion.pdf');
-file_name_data = fullfile('./data','time_pos_bm.csv');
+file_name_hist = fullfile('./figures','histogram_fbm_0_9.pdf');
+file_name_data = fullfile('./data','time_pos_fbm_0_9.csv');
 % Initialize time steps
 T = 110; % time from 0 to T
 N = 200; % there are going to be 200 steps
@@ -57,8 +58,14 @@ for ix = 1:nReps
     theta = pi/2;
     phi = pi/2;
    
-    dW = sqrt(Dt) * randn(2,N);
-    W = cumsum(dW);
+    % now we generate the fbm
+
+    dw1 = fbm([0:dt:T],H).';
+    dw2 = fbm([0:dt:T],H).';
+    dw1 = diff(dw1);
+    dw2 = diff(dw2);
+    dW = [dw1; dw2];
+    
 
    % These equations have been implemented in the functions that are in the folder functions
 

@@ -98,7 +98,37 @@ hold off
 removeToolbarExplorationButtons(gcf)
 exportgraphics(gcf, file_name, 'ContentType','vector');
 
+%%
 
 
+values_t0_h_09 = unique(time_0_h_09, 'sorted');
+indexes = [];
+for i = int64(linspace(1, length( values_t0_h_09), 5))
+    value = values_t0_h_09(i);
+    index = find(Time_possition_h_09 == value, 1, "first");
+    indexes = [indexes, index];
+end 
 
+% We plot the sprouts that behave in this ways in the 10 ways
 
+figure(8)
+cm = jet(length(indexes));
+color = 1;
+for jx = indexes
+
+    X = Xdata_h_09{jx};
+    name = ['Time =',num2str(Time_possition_h_09(jx))];
+    x_movido = X(1,:) - (max(X(1,:)));
+    plot3(x_movido,X(2,:), X(3,:),'Color', cm(color,:),'LineStyle','-','DisplayName',name, ...
+        'LineWidth',2);
+    color = color + 1;
+    hold on
+end
+axis tight
+legend show
+xlabel('X position [µm]')
+ylabel('Y position [µm]')
+zlabel('Time [h]')
+%zlabel('Time [h]')
+title('Angiogenesis with H = 0.9')
+% save sprouts

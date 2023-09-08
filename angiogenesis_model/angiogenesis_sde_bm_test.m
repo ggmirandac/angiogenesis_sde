@@ -1,4 +1,5 @@
 clc, close all
+clear
 addpath("./functions/")
 randn('seed', 1000)
 
@@ -10,15 +11,16 @@ Phi_data{nReps} = [];
 V_data{nReps} = [];
 Time_possition = zeros(1,nReps);
 file_name_hist = fullfile('./figures','histogram_brownianmotion.pdf');
-file_name_data = fullfile('./data','time_pos_bm.csv');
+file_name_figure = fullfile('./figures','plot_brownianmotion.svg');
+file_name_data = fullfile('./data','time_pos_bm.mat');
 % Initialize time steps
-T = 110; % time from 0 to T
-N = 200; % there are going to be 200 steps
+T = 100; % time from 0 to T
+N = 300; % there are going to be 2000 steps
 dt = T/N; % the discrete steps of the brownian
 
 
 
-for ix = 1:nReps    
+for ix = 1:nReps
     % based on the empirical data extracted
     % from stokes and lauffenburger
     beta = 0.99; % h^-1
@@ -29,15 +31,15 @@ for ix = 1:nReps
     delta = 3; % adimentional chemoatractant
     a0 = 10^-10; % initial concentration of the chemoatractant
     kappa = (alpha/beta) * (1/a0) * delta;
-    
+
     %Fractional Brownian Path
     %Now we define a fractional browian motion
 
-    
+
     %Now we plot the brownian walk for the x and y variables to see if they make sense
     % plot([0:dt:T],dW(1,:)), hold on
     % plot([0:dt:T],dW(2,:)), hold off
-    
+
     %Begining of the modeling
     %To solve the stochastic differential equation model we define the following L interger and stepsize
     R = 2;
@@ -47,22 +49,22 @@ for ix = 1:nReps
     Xem = zeros(2,L); % first x
     % second y
     Vem = zeros(2,L);
-    
+
     % Initialize the first point
-    Xzero = [ix*10;0];
+    Xzero = [ix*1;0];
     Xtemp = Xzero;
     Vzero = [0;0];
     Vtemp = Vzero;
     % And we initialize the first angles
     theta = pi/2;
     phi = pi/2;
-   
-    dW = sqrt(Dt) * randn(2,N);
+
+    dW = sqrt(dt) * randn(2,N);
     W = cumsum(dW);
 
    % These equations have been implemented in the functions that are in the folder functions
 
-    % plot([1:100],da(:))    
+    % plot([1:100],da(:))
     % We beging the for loop for the model
     Theta = zeros(L);
     Theta(1) = theta;
@@ -97,7 +99,7 @@ for ix = 1:nReps
             yj_1 = Xem(2,j-1);
             theta = atan((yj-yj_1)/(xj-xj_1));
             phi = calculate_phi( xj, yj , xj, -100,0);
-            Theta(j) = theta; 
+            Theta(j) = theta;
         end
         % storing of data
         DA_list(:,j) = DA;
@@ -105,21 +107,21 @@ for ix = 1:nReps
 
         % we store the time in which the sprout touches the 200 mu m
         % and when it does we store the time in Time_possition
-        
-        if Time_possition(ix)==0 & Xem(2,j) > 200
+
+        if Time_possition(ix)==0 & Xem(2,j) > 400
             Time_possition(ix) = Dt*j;
             break
-    
-        end 
+
+        end
         %if end_simu == false
         %5    j = j + 1;
         %end
     end
-    % We see the array of solutions for the position  
-    
-    
+    % We see the array of solutions for the position
+
+
     tSpan = linspace(1, j*Dt, j);
-    Xdata{ix} = [Xem(1,1:j);Xem(2,1:j);tSpan];    
+    Xdata{ix} = [Xem(1,1:j);Xem(2,1:j);tSpan];
     DA_data{ix} = [DA_list(:,1:j); tSpan];
     Theta_data{ix} = [Theta(1:j);tSpan];
     Phi_data{ix} = [Phi(1:j); tSpan];
@@ -136,7 +138,7 @@ end
 figure(4)
 ;
 for jx = 1:nReps
-    
+
     name = ['Reps =',num2str(jx)];
     da_rep = DA_data{jx};
     plot(da_rep(2,:),da_rep(1,:),'Color',cm(jx,:),'LineStyle','-.','DisplayName',name);
@@ -149,8 +151,9 @@ ylabel("Gradient Value")
 %}
 
 %figure(1)
-cm = jet(nReps);
 %{
+cm = jet(nReps);
+
 for jx = 1:nReps
     Xtemp = Xdata{jx};
     name = ['Reps =',num2str(jx)];
@@ -216,14 +219,74 @@ ylabel('Tiempo (h)')
 title('Tiempo de llegada a 200 mu m')
 %}
 
+%% Save the time possition variable
+
+% we eliminate the 0 values and store the quantity of them
+
+time_0_bm = Time_possition(Time_possition ~= 0);
+n_time_0_bm = length(Time_possition(Time_possition == 0));
+Time_possition_bm = Time_possition;
+% We export these values
+
+save(file_name_data, 'Time_possition_bm', 'time_0_bm' ,'n_time_0_bm','-mat')
+
+% Generate Histogram
 figure(7)
 
-h = histogram(Time_possition,'BinEdges',[0:Dt:T]);
+h = histogram(time_0_bm, 'BinEdges',[0:1:T]); hold on
+
+leg = ['#0 value = ', num2str(n_time_0_bm)];
+
+legend(leg)
 
 removeToolbarExplorationButtons(h);
+
+
+% save it
 
 exportgraphics(gcf, file_name_hist ...
     ,'ContentType','vector')
 
-writematrix(Time_possition, file_name_data)
+%% generate the index for the different deciles
+
+
+sorted_t0_bm = sort(time_0_bm);
+division = int64(length(sorted_t0_bm)/10);
+indexes = [];
+for i = linspace(1, length(time_0_bm), 10)
+    value = sorted_t0_bm(int64(i));
+    index = find(Time_possition_bm == value, 1, "first");
+    indexes = [indexes, index];
+end 
+
+
+
+
+
+
+
+
+% We plot the sprouts that behave in this ways in the 10 ways
+
+figure(8)
+cm = jet(length(indexes));
+color = 1;
+for jx = indexes
+
+    X = Xdata{jx};
+    name = ['Time =',num2str(Time_possition(jx))];
+    x_movido = X(1,:) - (max(X(1,:)));
+    plot(x_movido,X(2,:),'Color', cm(color,:),'LineStyle','-','DisplayName',name, ...
+        'LineWidth',2);
+    color = color + 1;
+    hold on
+end
+axis tight
+legend show
+xlabel('X position')
+ylabel('Y position')
+title('Angiogenesis based on Brownian Motion')
+% save sprouts
+
+saveas(gcf, file_name_figure,'svg')
 

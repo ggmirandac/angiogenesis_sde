@@ -1,8 +1,10 @@
 clc, close all
+clear
 addpath("./functions/")
 randn('seed', 1000)
 
-H = 0.9;
+%%
+H = 0.1;
 nReps = 10000;
 Xdata{nReps} = [];
 Da_data{nReps} = [];
@@ -10,12 +12,15 @@ Theta_data{nReps} = [];
 Phi_data{nReps} = [];
 V_data{nReps} = [];
 Time_possition = zeros(1,nReps);
-file_name_hist = fullfile('./figures','histogram_fbm_0_9.pdf');
-file_name_data = fullfile('./data','time_pos_fbm_0_9.csv');
+file_name_hist = fullfile('./figures','histogram_fbm_0_01.pdf');
+file_name_figure = fullfile('./figures','plot_fbm_h_0_01.svg');
+file_name_data = fullfile('./data','time_pos_fbm_0_01.mat');
+% Initialize time steps5
 % Initialize time steps
-T = 110; % time from 0 to T
-N = 200; % there are going to be 200 steps
+T = 100; % time from 0 to T
+N = 300; % there are going to be 2000 steps
 dt = T/N; % the discrete steps of the brownian
+%%
 
 
 
@@ -84,7 +89,8 @@ for ix = 1:nReps
 
         winc = sum(dW(:,R*(j-1)+1:R*j),2);
         DA = gradient_const(Xtemp(1,:),Xtemp(2,:), 8e-15);
-        Vtemp = Vtemp + (-beta * Vtemp + kappa * DA * sin(abs(phi/2)))*Dt + sqrt(alpha)*winc;
+        Vtemp = Vtemp + (-beta * Vtemp + kappa * DA * sin(abs(phi/2)))*Dt + ... 
+            (alpha^H)*winc;
         Vem(:,j) = Vtemp;
         Xtemp = Xtemp + Vtemp * Dt;
 
@@ -156,7 +162,6 @@ ylabel("Gradient Value")
 %}
 
 %figure(1)
-cm = jet(nReps);
 %{
 for jx = 1:nReps
     Xtemp = Xdata{jx};
@@ -223,14 +228,113 @@ ylabel('Tiempo (h)')
 title('Tiempo de llegada a 200 mu m')
 %}
 
+%% Save the time possition variable
+
+% we eliminate the 0 values and store the quantity of them
+
+time_0_h_01 = Time_possition(Time_possition ~= 0);
+n_time_0_h_01 = length(Time_possition(Time_possition == 0));
+Time_possition_h_01 = Time_possition;
+Xdata_h_01 = Xdata;
+% We export these values
+
+save(file_name_data, 'Time_possition_h_01', 'time_0_h_01' ,'n_time_0_h_01',"Xdata_h_01",'-mat')
+
+% Generate Histogram
 figure(7)
 
-h = histogram(Time_possition,'BinEdges',[0:Dt:T]);
+h = histogram(time_0_h_01, 'BinEdges',[0:1:T]); hold on
+
+leg = ['#0 value = ', num2str(n_time_0_h_01)];
+
+legend(leg)
 
 removeToolbarExplorationButtons(h);
+
+
+% save it
 
 exportgraphics(gcf, file_name_hist ...
     ,'ContentType','vector')
 
-writematrix(Time_possition, file_name_data)
+%% generate the index for the different deciles
+try 
+    
+    values_t0_h_01 = unique(time_0_h_01, 'sorted');
+    indexes = [];
+    for i = int64(linspace(1, length( values_t0_h_01), 5))
+        value = values_t0_h_01(i);
+        index = find(Time_possition_h_01 == value, 1, "first");
+        indexes = [indexes, index];
+    end 
+    
+    % We plot the sprouts that behave in this ways in the 10 ways
+    
+    figure(8)
+    cm = jet(length(indexes));
+    color = 1;
+    for jx = indexes
+    
+        X = Xdata{jx};
+        name = ['Time =',num2str(Time_possition(jx))];
+        x_movido = X(1,:) - (max(X(1,:)));
+        plot(x_movido,X(2,:),'Color', cm(color,:),'LineStyle','-','DisplayName',name, ...
+            'LineWidth',2);
+        color = color + 1;
+        hold on
+    end
+    axis tight
+    legend show
+    xlabel('X position [µm]')
+    ylabel('Y position [µm]')
+    %zlabel('Time [h]')
+    title('Angiogenesis with H = 0.1')
+    % save sprouts
+    
+    saveas(gcf, file_name_figure,'svg')
+catch 
+    %If nothing was plotted
+    
+    % extract the movement via a quintiles
+    
+    max_y = [];
+    for i = 1:length(Xdata)
+        max_yi = max(Xdata{i}(2,:));
+        max_y = [max_y,max_yi];
+    end
+    
+    value_max = unique(max_y, 'sorted');
+    
+    indexes = [];
+    for i = int64(linspace(1, length(value_max), 5))
+        value = value_max(i);
+        index = find(max_y == value, 1, "first");
+        indexes = [indexes, index];
+    end 
+    
+    % We plot the sprouts that behave in this ways in the 5 quintiles
+    
+    figure(8)
+    cm = jet(length(indexes));
+    color = 1;
+    for jx = indexes
+    
+        X = Xdata{jx};
+        name = ['Max y =',num2str(max_y(jx))];
+        x_movido = X(1,:) - (max(X(1,:)));
+        plot(x_movido,X(2,:),'Color', cm(color,:),'LineStyle','-','DisplayName',name, ...
+            'LineWidth',2);
+        color = color + 1;
+        hold on
+    end
+    axis tight
+    legend show
+    xlabel('X position [µm]')
+    ylabel('Y position [µm]')
+    %zlabel('Time [h]')
+    title('Angiogenesis with H = 0.1')
+    % save sprouts
+    
+    saveas(gcf, file_name_figure,'svg')
 
+end 

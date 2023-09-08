@@ -2,7 +2,7 @@ clc, close all
 addpath("./functions/")
 
 
-H = 0.9;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
+H = 0.1;   % .5 = Brownian motion; 0 = negative correlated; 1 = positive correlated; 1 > H > .5 = inbewteen
 nReps = 1e1;
 Xdata{nReps} = [];
 Da_data{nReps} = [];

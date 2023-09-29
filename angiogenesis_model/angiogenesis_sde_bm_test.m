@@ -107,12 +107,13 @@ for ix = 1:nReps
 
         % we store the time in which the sprout touches the 200 mu m
         % and when it does we store the time in Time_possition
-
-        if Time_possition(ix)==0 & Xem(2,j) > 400
+        %{
+        if Time_possition(ix)==0 & Xem(2,j) > 200
             Time_possition(ix) = Dt*j;
             break
 
         end
+        %}
         %if end_simu == false
         %5    j = j + 1;
         %end
@@ -149,16 +150,17 @@ xlabel("Time")
 legend show
 ylabel("Gradient Value")
 %}
+%%
 
-%figure(1)
-%{
+figure(1)
+
 cm = jet(nReps);
 
-for jx = 1:nReps
+for jx = 1:1000:nReps
     Xtemp = Xdata{jx};
     name = ['Reps =',num2str(jx)];
     plot(Xtemp(1,:),Xtemp(2,:),'Color', cm(jx,:),'LineStyle','-.','DisplayName',name, ...
-        'LineWidth',2);
+        'LineWidth',2)
     hold on
 end
 axis tight
@@ -166,21 +168,23 @@ axis tight
 xlabel('X position')
 ylabel('Y position')
 title('Angiogenesis based on Brownian Motion')
-
+saveas(gcf,"angiogenesis.svg")
+hold off
+%%
 figure(5)
 for jx = 1:nReps
     Vemp = V_data{jx};
     name = ['Reps =',num2str(jx)];
     plot(Vemp(1,:),Vemp(2,:),'Color', cm(jx,:),'LineStyle','-.','DisplayName',name, ...
-        'LineWidth',2);
+        'LineWidth',10);
     hold on
 end
 axis tight
 %legend show
 xlabel('X velocity')
 ylabel('Y velocity')
-title('Angiogenesis based on Brownian Motion')
-%}
+title('Angiogenesis based on Brownian Motion')e 
+%%
 %{
 figure(2)
 for jx = 1:nReps
@@ -250,6 +254,8 @@ exportgraphics(gcf, file_name_hist ...
 %% generate the index for the different deciles
 
 
+
+
 sorted_t0_bm = sort(time_0_bm);
 division = int64(length(sorted_t0_bm)/10);
 indexes = [];
@@ -291,5 +297,6 @@ title('Angiogenesis based on Brownian Motion')
 saveas(gcf, file_name_figure,'svg')
 
 %%
+
 
 

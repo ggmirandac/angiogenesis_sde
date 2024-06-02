@@ -142,14 +142,14 @@ end
 
 # ╔═╡ 24104a15-5ae3-468e-bef5-3afff3d2bf0a
 begin
-	n_steps2 = 10000
+	n_steps2 = 7000
 	dt2 = 0.001
 	x_02 = 0
 	tf2 = n_steps2 * dt2 - dt2
 	t2 = 0:dt2:tf2
 	
 	
-	n_reps = 1000
+	n_reps = 10
 	p = Plots.plot(title = "Ornstein - Unlenback process", dpi = 600)
 	for i = 1:n_reps
 		vi = OUP(n_steps2, dt2, x_02)
@@ -158,6 +158,9 @@ begin
 	Plots.plot(p)
 	
 end
+
+# ╔═╡ 198364c5-6833-4b60-84d0-420ba3f2811a
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1346,8 +1349,9 @@ version = "1.4.1+1"
 # ╟─7e6f1a25-204a-4eea-9da8-0e88b78a54a2
 # ╠═3bbaf57c-995b-4fa0-91c1-63096573a46c
 # ╠═a8392e63-9f36-457f-8fbe-fe0b167aa5fa
-# ╟─2fbd1939-7405-4bd9-94b5-3dc81df6927d
+# ╠═2fbd1939-7405-4bd9-94b5-3dc81df6927d
 # ╠═2b619820-c748-4559-9069-7324c3de3e9a
 # ╠═24104a15-5ae3-468e-bef5-3afff3d2bf0a
+# ╠═198364c5-6833-4b60-84d0-420ba3f2811a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

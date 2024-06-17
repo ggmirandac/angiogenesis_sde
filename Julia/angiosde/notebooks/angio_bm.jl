@@ -60,13 +60,34 @@ Then from this, the positions can be defined as:
 
 # ╔═╡ bb190ac7-4a2a-45a7-a7b6-0976819225e8
 """
-	constant_gradient(a)
+	sphere_gradient(xa, ya, xi, yi, a0, R)
 Returns a constant concentration gradient at every (x,y)
 # Arguments
-- `a(::Float64)`: Strength of the gradient
+- `xi, yi`: Position of the tip of the capillary
+- `xa, ya`: Position of the source
+- `a0`: Initial concentration
+- `R`: Radious of source
 """
-function constant_gradient(a)
-	return [0;a]
+function sphere_gradient(xa, ya, xi, yi, a0, R)
+	distance = sqrt((xa-xi)^2 + (ya-yi)^2)
+	
+	if distance > R
+		delta_a = [a0*R/(distance), a0*R/(distance)]
+	else 
+		delta_a = "stop"
+	end
+	return delta_a
+end
+
+# ╔═╡ 0b90fbdc-b1b6-4210-b253-da83c2b3e439
+function divergence_gradient(xi, yi, force)
+	if yi == 0
+		return [0;0]
+	elseif yi < 0 
+		return [0;-force]
+	else
+		return [0;force]
+	end
 end
 
 # ╔═╡ 6bffff2d-0b84-483b-be56-ce1d9e6068cd
@@ -118,31 +139,48 @@ Simulates the sprout given the Stokes and Lauffenburger model.
 	Stokes, C. L., & Lauffenburger, D. A. (1991). Analysis of the roles of microvessel endothelial cell random motility and chemotaxis in angiogenesis. Journal of Theoretical Biology, 152(3), 377–403. https://doi.org/10.1016/S0022-5193(05)80201-2
 
 """
-function simulate_sprout(x1, nabla_a, beta, alpha, kappa, xa, ya; dt = 1, 
-							v1 = [0,0], n_steps = 100, grad_strength = 1)
+function simulate_sprout(x1, nabla_a, beta, alpha, kappa, xa, ya; T = 100, N = 300, R = 2, v1 = [0;0], a0 = 10^-10, Radious = 1)
+	# Euler-Maruyama simulations steps
+	dt = T/N
+	DT = R*dt
+	L = Int(N/R)
+	# dataframes to store paths
 	df_x = DataFrames.DataFrame(time = Any[], x = Float64[], y = Float64[])
-	normal = Distributions.Normal(0, 1) # Note that a brownian motion has variance t_(n+1) - t_n = dt
-	brownian_motion = rand(normal, (2, n_steps))
+	df_v = DataFrames.DataFrame(time = Any[], x = Float64[], y = Float64[])
+
+	# Normal for random motion
+	normal = Distributions.Normal(0, dt) # Note that a brownian motion has variance t_(n+1) - t_n = dt
+	dW = rand(normal, (2, N))
+	
 	## initialization of parameters:
-	phi_1 = 1/2 # Initialization of the phi 
-	theta_1 = 1/2 # Initialization of theta
+	phi = 0 # Initialization of the phi 
+	theta = 0 # Initialization of theta
 	v_vect = Vector{Float64}[v1] # Vector to contain the sprout velocity over time
 	x_vect = Vector{Float64}[x1] # Vector to contain the sprout position over time
 	
 	push!(df_x, [0, x_vect[1][1], x_vect[1][2]])
-	for step = 2:n_steps
-		time = (step-1) * dt
+	push!(df_v, [0, v_vect[1][1], x_vect[1][2]])
+	for step = 2:L
+		time = (step-1) * DT
 		# deterministic step
 		v_i_1 = v_vect[step-1]
 		x_i_1 = x_vect[step-1]
 		# deterministic
-		det_vi = v_i_1 .+ ( - beta .*v_i_1 .+ kappa .* nabla_a(grad_strength) .* sin(phi_1/2)) .* dt 
+		gradiente = nabla_a(x_i_1[1], x_i_1[2], a0)
+		if gradiente == "stop"
+			return df_x, df_v
+		end
+		det_vi = ( - beta .*v_i_1) .* DT 
+		#bias
+
+		bias_vi =( kappa * gradiente * sin(phi/2) ) * DT
 		# random
-		rand_vi = sqrt(alpha * dt) * (brownian_motion[:,step] - brownian_motion[:,step-1])
+		rand_vi = vec(sqrt(alpha) .* sum(dW[:, R*(step-1)+1:R*step];dims = 2))
+		# sum to v
+		v_i = v_i_1 +  det_vi + rand_vi + bias_vi
+
+		x_i = x_i_1 + v_i .* DT
 		
-		v_i = det_vi + rand_vi
-		
-		x_i = x_i_1 .+ v_i .* dt
 		push!(v_vect, v_i)
 		push!(x_vect, x_i)
 		
@@ -151,28 +189,38 @@ function simulate_sprout(x1, nabla_a, beta, alpha, kappa, xa, ya; dt = 1,
 			(x_vect[step][2] - x_vect[step-1][2]) /(x_vect[step][1] - x_vect[step-1][1])
 		)
 		
-		phi_1 = calculate_phi(x_vect[step][1], x_vect[step][2], xa , ya, theta)
-
+		phi = calculate_phi(x_vect[step][1], x_vect[step][2], xa , ya, theta)
 		push!(df_x, [time, x_vect[step][1], x_vect[step][2]])
-		
+		push!(df_v, [time, v_vect[step][1], v_vect[step][2]])
 	end
-	return df_x
+	return df_x, df_v
 end
 
 # ╔═╡ e97e4b6f-d90b-4885-8351-bce5762e623b
 begin
 	# Run simulation
+	# Parameters
 	x1 = [0;0]
-	nabla_a = constant_gradient
- 	beta = 0.5 # h^-1
-    alpha = 1900 # µm^2 h-3
+	nabla_a = divergence_gradient
+ 	beta = 0.99 # h^-1
+    alpha = 1900 # µm^2 h^-3
 	# Now we generate the kappa parameter using the derivation of S and L
     # using the delta parameter
     delta = 3 # adimentional chemoatractant
-    a0 = 10^-10 # initial concentration of the chemoatractant
-    kappa = (alpha/beta) * (1/a0) * delta # chemotactic responsiveness 
-	xa = 20
-	ya = 20
+    a0 = 1 # initial concentration of the chemoatractant
+	Radious = 1
+    kappa = 10 # chemotactic responsiveness 
+	xa = 0
+	ya = 100
+
+	#temporal for simul
+	T = 200 # time from 0 to T
+	N = 600 # there are going to be 300 steps
+	R = 2;
+
+
+
+	Plots.plot(x[:,"x"], x[:,"y"])
 	
 end
 
@@ -180,9 +228,11 @@ end
 begin
 	n_s = 100
 	Plots.plot(title = "Simulation of Sprout growing, n = $n_s", dpi = 600)
+
 	for i = 1:n_s
-		x = simulate_sprout(x1, nabla_a, beta, alpha, kappa, xa, ya; dt = 0.01, 
-									v1 = [0;0], n_steps = 100001, grad_strength = 1)
+			xv = simulate_sprout(x1, nabla_a, beta, alpha, kappa, xa, ya; T = 100, N = 300, R = 2, v1 = [0;0], a0 = a0, Radious = Radious)
+		x = xv[1]
+
 		Plots.plot!(x[:,"x"], x[:,"y"], label = "")
 		Plots.scatter!([x[end,"x"]],[x[end,"y"]], label="", markershape =  :xcross, markersize = 6,color = "red", markerstrokewidth = 4)
 		Plots.scatter!([x[1,"x"]],[x[1,"y"]],  label="", markershape = :star5, markersize = 6)
@@ -196,6 +246,7 @@ end
 # ╠═05efad10-26a4-11ef-187a-4be6f874349d
 # ╠═fe2a5cc0-f423-44f1-b456-1e70b1bc5377
 # ╠═bb190ac7-4a2a-45a7-a7b6-0976819225e8
+# ╠═0b90fbdc-b1b6-4210-b253-da83c2b3e439
 # ╠═6bffff2d-0b84-483b-be56-ce1d9e6068cd
 # ╠═5f979125-77df-41bb-99e2-fcedd0598db3
 # ╠═b3f71284-feb2-47e9-94dd-60e4d51b382f

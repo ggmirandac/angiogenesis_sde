@@ -15,7 +15,7 @@ file_name_figure = fullfile('./figures','plot_brownianmotion.svg');
 file_name_data = fullfile('./data','time_pos_bm.mat');
 % Initialize time steps
 T = 100; % time from 0 to T
-N = 300; % there are going to be 2000 steps
+N = 300; % there are going to be 300 steps
 dt = T/N; % the discrete steps of the brownian
 
 
@@ -46,7 +46,7 @@ for ix = 1:nReps
     Dt = R*dt; % We define the Dt as a multiple of dt
     L = N/R; % L is used to discretize the time
     % We initialize the solution vector
-    Xem = zeros(2,L); % first x
+    Xem = zeros(2,L); % firsNt x
     % second y
     Vem = zeros(2,L);
 
@@ -183,7 +183,7 @@ axis tight
 %legend show
 xlabel('X velocity')
 ylabel('Y velocity')
-title('Angiogenesis based on Brownian Motion')e 
+title('Angiogenesis based on Brownian Motion')
 %%
 %{
 figure(2)
@@ -231,8 +231,6 @@ time_0_bm = Time_possition(Time_possition ~= 0);
 n_time_0_bm = length(Time_possition(Time_possition == 0));
 Time_possition_bm = Time_possition;
 % We export these values
-
-save(file_name_data, 'Time_possition_bm', 'time_0_bm' ,'n_time_0_bm','-mat')
 
 % Generate Histogram
 figure(7)
@@ -293,8 +291,6 @@ xlabel('X position')
 ylabel('Y position')
 title('Angiogenesis based on Brownian Motion')
 % save sprouts
-
-saveas(gcf, file_name_figure,'svg')
 
 %%
 

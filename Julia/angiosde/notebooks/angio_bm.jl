@@ -217,10 +217,6 @@ begin
 	T = 200 # time from 0 to T
 	N = 600 # there are going to be 300 steps
 	R = 2;
-
-
-
-	Plots.plot(x[:,"x"], x[:,"y"])
 	
 end
 

@@ -342,7 +342,7 @@ plot_autocorr = true
 if plot_autocorr == true
     Plots.plot(title = "Autocorrelation of the sprout")
     for i = 1:100
-        Plots.plot!(StatsBase.autocor(vy_lists[i,:], collect(1:10:length(x_lists[i,:])); demean = true), label = "")
+        Plots.plot!(StatsBase.autocor(vx_lists[i,:], collect(1:10:length(x_lists[i,:])); demean = true), label = "")
     end
     Plots.title!("Autocorrelation of the sprout")
 end

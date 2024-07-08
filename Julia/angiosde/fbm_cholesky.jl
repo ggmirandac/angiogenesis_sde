@@ -12,78 +12,92 @@ white noise source for each dimension. So, let's compare what we would get only 
 the random source
 """
 
-
-function cholesky_fbm(n_steps::Int, n_dim::Int, H::Float64, T::Float64)
-    dt = T / n_steps
-    t = range(0, T, length=n_steps+1)
-    
-    # Create covariance matrix
-    cov_matrix = [0.5 * (abs(ti)^(2*H) + abs(tj)^(2*H) - abs(ti-tj)^(2*H)) for ti in t, tj in t]
-    
-    # Add a small positive value to the diagonal for regularization
-    epsilon = 1e-8 * maximum(diag(cov_matrix))
-    cov_matrix += epsilon * I
-    
-    # Cholesky decomposition
-    L = cholesky(Symmetric(cov_matrix)).L
-    
-    # Generate standard normal random variables
-    Z = randn(n_steps+1, n_dim) 
-
-    # Generate fractional Brownian motion
-    X = L * Z
-    X *= dt ^ H
-    
-    return X
+function rho(n, H)
+    ρn = 0.5 * (abs(n+1)^(2*H) + abs(n-1)^(2*H) - 2 * abs(n)^(2*H))
+    return ρn
 end
 
-function brownian_motion(n_steps::Int, n_dim::Int, T::Float64)
-    dt = T / n_steps
-    dW = randn(n_steps, n_dim) * dt
-    W = cumsum(dW, dims=1)
-    return vcat(zeros(n_dim)', W)
+function cov_matrix(n_steps, H)
+    C = zeros(n_steps, n_steps)
+    for i in 1:n_steps
+        for j in 1:n_steps
+            C[i, j] = rho(abs(i-j), H)
+        end
+    end
+    return C
+end
+
+function cholesky_fbm(n_steps::Int, n_dim::Int, H::Float64, Δt::Float64, L::Matrix{Float64})
+    normal = Normal(0, 1)
+    Z = rand(normal, n_steps, n_dim)
+    fgn = L * Z
+    fgn *= Δt ^ H
+    path = zeros(n_steps, n_dim)
+    for i = 2:n_steps
+        path[i, :] = path[i-1, :] .+ fgn[i-1, :]
+    end
+    return path
+end
+
+function brownian_motion(n_steps::Int, n_dim::Int, Δt::Float64)
+    normal = Normal(0, sqrt(Δt))
+    gn = rand(normal, n_steps, n_dim)
+    path = zeros(n_steps, n_dim)
+    for i = 2:n_steps
+        path[i, :] = path[i-1, :] .+ gn[i-1, :]
+    end
+    return path
 end
 
 # Example usage
-n_steps = 1000
-n_dim = 2
+n_dim = 1 # number of dimensions
 H = 0.5  # Hurst parameter
-T = 2.0  # Total time
-dt = T / n_steps
-X = cholesky_fbm(n_steps, n_dim, H, T)
-X1 = brownian_motion(n_steps, n_dim, T)
+T = 10.0  # Total time
+dt = 0.5 # time step size
+n_steps = Int(T / dt) # number of steps
+t_eval = collect(1:n_steps) * dt
+L = cholesky(cov_matrix(n_steps, H)).L
+
+X = cholesky_fbm(n_steps, n_dim, H, dt, L)
+X1 = brownian_motion(n_steps, n_dim, dt)
 
 
 reps = 1e5
 
-x_bm1 = zeros(Int(reps), n_steps+1)
-x_fbm1 = zeros(Int(reps), n_steps+1)
-x_bm2 = zeros(Int(reps), n_steps+1)
-x_fbm2 = zeros(Int(reps), n_steps+1)
+x_bm1 = zeros(Int(reps), n_steps)
+x_fbm1 = zeros(Int(reps), n_steps)
+# x_bm2 = zeros(Int(reps), n_steps)
+# x_fbm2 = zeros(Int(reps), n_steps)
 
 for i in 1:Int(reps)
-    x_bm1[i,:] = brownian_motion(n_steps, n_dim, T)[:, 1]
-    x_fbm1[i,:] = cholesky_fbm(n_steps, n_dim, H, T)[:,1]
-    x_bm2[i,:] = brownian_motion(n_steps, n_dim, T)[:, 2]
-    x_fbm2[i,:] = cholesky_fbm(n_steps, n_dim, H, T)[:, 2]
+    x_bm1[i,:] = brownian_motion(n_steps, n_dim, dt)
+    x_fbm1[i,:] = cholesky_fbm(n_steps, n_dim, H, dt)
+    # x_bm2[i,:] = brownian_motion(n_steps, n_dim, T)[:, 2]
+    # x_fbm2[i,:] = cholesky_fbm(n_steps, n_dim, H, T)[:, 2]
 end
+boxplot(x_bm1[:, 1])
+boxplot!(x_fbm1[:, 1])
 
+# p1 = plot(t_eval, x_bm1[:,:]', label = "")
+# p2 = plot(t_eval, x_fbm1[:,:]', label = "")
+# plot(p1, p2, layout=(1,2), size=(1000, 500), legend=:topleft)
 mean_bm1 = mean(x_bm1, dims=1)
 mean_fbm1 = mean(x_fbm1, dims=1)
-mean_bm2 = mean(x_bm2, dims=1)
-mean_fbm2 = mean(x_fbm2, dims=1)
+# # mean_bm2 = mean(x_bm2, dims=1)
+# # mean_fbm2 = mean(x_fbm2, dims=1)
 sd_bm1 = std(x_bm1, dims=1)
 sd_fbm1 = std(x_fbm1, dims=1)
-sd_bm2 = std(x_bm2, dims=1)
-sd_fbm2 = std(x_fbm2, dims=1)
+# # sd_bm2 = std(x_bm2, dims=1)
+# # sd_fbm2 = std(x_fbm2, dims=1)
 
 
-p_bm1 = plot(collect(0:dt:T), mean_bm1[:], ribbon=sd_bm1[:], label="BM1", color=:blue, alpha=0.5, title = "Brownian Motion\nx1 dimension")
-p_fbm1 = plot(collect(0:dt:T), mean_fbm1[:], ribbon=sd_fbm1[:], label="fBM1 H = 0.5", color=:red, alpha=0.5, title = "Fractional Brownian Motion\nx1 dimension")
-p_bm2 = plot(collect(0:dt:T), mean_bm2[:], ribbon=sd_bm2[:], label="BM2", color=:blue, alpha=0.5, title = "Brownian Motion\nx2 dimension")
-p_fbm2 = plot(collect(0:dt:T), mean_fbm2[:], ribbon=sd_fbm2[:], label="fBM2 H = 0.5", color=:red, alpha=0.5, title = "Fractional Brownian Motion\nx2 dimension")
+p_bm1 = plot(t_eval, mean_bm1[:], ribbon=sd_bm1[:], label="BM1", color=:blue, alpha=0.5, title = "Brownian Motion\nx1 dimension")
+p_fbm1 = plot(t_eval, mean_fbm1[:], ribbon=sd_fbm1[:], label="fBM1 H = 0.5", color=:red, alpha=0.5, title = "Fractional Brownian Motion\nx1 dimension")
+# # p_bm2 = plot(t_eval, mean_bm2[:], ribbon=sd_bm2[:], label="BM2", color=:blue, alpha=0.5, title = "Brownian Motion\nx2 dimension")
+# # p_fbm2 = plot(t_eval, mean_fbm2[:], ribbon=sd_fbm2[:], label="fBM2 H = 0.5", color=:red, alpha=0.5, title = "Fractional Brownian Motion\nx2 dimension")
 
-plot(p_bm1, p_fbm1, p_bm2, p_fbm2, layout=(2,2), size=(800, 600), legend=:topleft)
+# # plot(p_bm1, p_fbm1, p_bm2, p_fbm2, layout=(2,2), size=(800, 600), legend=:topleft)
+plot(p_bm1, p_fbm1, size=(800, 600), legend=:topleft)
 
 bm_1_last = x_bm1[:, end]
 fbm_1_last = x_fbm1[:, end]

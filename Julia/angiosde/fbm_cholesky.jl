@@ -27,7 +27,7 @@ function cov_matrix(n_steps, H)
     return C
 end
 
-function cholesky_fbm(n_steps::Int, n_dim::Int, H::Float64, Δt::Float64, L::Matrix{Float64})
+function cholesky_fbm(n_steps::Int, n_dim::Int, H::Float64, Δt::Float64, L::LowerTriangular{Float64, Matrix{Float64}})
     normal = Normal(0, 1)
     Z = rand(normal, n_steps, n_dim)
     fgn = L * Z
@@ -50,7 +50,7 @@ function brownian_motion(n_steps::Int, n_dim::Int, Δt::Float64)
 end
 
 # Example usage
-n_dim = 1 # number of dimensions
+n_dim = 2 # number of dimensions
 H = 0.5  # Hurst parameter
 T = 10.0  # Total time
 dt = 0.5 # time step size
@@ -66,38 +66,35 @@ reps = 1e5
 
 x_bm1 = zeros(Int(reps), n_steps)
 x_fbm1 = zeros(Int(reps), n_steps)
-# x_bm2 = zeros(Int(reps), n_steps)
-# x_fbm2 = zeros(Int(reps), n_steps)
+x_bm2 = zeros(Int(reps), n_steps)
+x_fbm2 = zeros(Int(reps), n_steps)
 
 for i in 1:Int(reps)
-    x_bm1[i,:] = brownian_motion(n_steps, n_dim, dt)
-    x_fbm1[i,:] = cholesky_fbm(n_steps, n_dim, H, dt)
-    # x_bm2[i,:] = brownian_motion(n_steps, n_dim, T)[:, 2]
-    # x_fbm2[i,:] = cholesky_fbm(n_steps, n_dim, H, T)[:, 2]
+    bm = brownian_motion(n_steps, n_dim, dt)
+    fbm = cholesky_fbm(n_steps, n_dim, H, dt, L)
+    x_bm1[i, :] = bm[:, 1]
+    x_fbm1[i, :] = fbm[:, 1]
+    x_bm2[i, :] = bm[:, 2]
+    x_fbm2[i, :] = fbm[:, 2]
 end
-boxplot(x_bm1[:, 1])
-boxplot!(x_fbm1[:, 1])
 
-# p1 = plot(t_eval, x_bm1[:,:]', label = "")
-# p2 = plot(t_eval, x_fbm1[:,:]', label = "")
-# plot(p1, p2, layout=(1,2), size=(1000, 500), legend=:topleft)
 mean_bm1 = mean(x_bm1, dims=1)
 mean_fbm1 = mean(x_fbm1, dims=1)
-# # mean_bm2 = mean(x_bm2, dims=1)
-# # mean_fbm2 = mean(x_fbm2, dims=1)
+mean_bm2 = mean(x_bm2, dims=1)
+mean_fbm2 = mean(x_fbm2, dims=1)
 sd_bm1 = std(x_bm1, dims=1)
 sd_fbm1 = std(x_fbm1, dims=1)
-# # sd_bm2 = std(x_bm2, dims=1)
-# # sd_fbm2 = std(x_fbm2, dims=1)
+sd_bm2 = std(x_bm2, dims=1)
+sd_fbm2 = std(x_fbm2, dims=1)
 
 
 p_bm1 = plot(t_eval, mean_bm1[:], ribbon=sd_bm1[:], label="BM1", color=:blue, alpha=0.5, title = "Brownian Motion\nx1 dimension")
 p_fbm1 = plot(t_eval, mean_fbm1[:], ribbon=sd_fbm1[:], label="fBM1 H = 0.5", color=:red, alpha=0.5, title = "Fractional Brownian Motion\nx1 dimension")
-# # p_bm2 = plot(t_eval, mean_bm2[:], ribbon=sd_bm2[:], label="BM2", color=:blue, alpha=0.5, title = "Brownian Motion\nx2 dimension")
-# # p_fbm2 = plot(t_eval, mean_fbm2[:], ribbon=sd_fbm2[:], label="fBM2 H = 0.5", color=:red, alpha=0.5, title = "Fractional Brownian Motion\nx2 dimension")
+p_bm2 = plot(t_eval, mean_bm2[:], ribbon=sd_bm2[:], label="BM2", color=:blue, alpha=0.5, title = "Brownian Motion\nx2 dimension")
+p_fbm2 = plot(t_eval, mean_fbm2[:], ribbon=sd_fbm2[:], label="fBM2 H = 0.5", color=:red, alpha=0.5, title = "Fractional Brownian Motion\nx2 dimension")
 
-# # plot(p_bm1, p_fbm1, p_bm2, p_fbm2, layout=(2,2), size=(800, 600), legend=:topleft)
-plot(p_bm1, p_fbm1, size=(800, 600), legend=:topleft)
+plot(p_bm1, p_fbm1, p_bm2, p_fbm2, layout=(2,2), size=(800, 600), legend=:topleft)
+#plot(p_bm1, p_fbm1, size=(800, 600), legend=:topleft)
 
 bm_1_last = x_bm1[:, end]
 fbm_1_last = x_fbm1[:, end]
@@ -106,7 +103,7 @@ pval = round(pvalue(ApproximateTwoSampleKSTest(bm_1_last, fbm_1_last)), digits=2
 
 p1 = histogram(bm_1_last, label="BM1", alpha=0.5, color=:blue, bins=20, title="Histogram of the last value\nBM1 vs fBM1")
 histogram!(fbm_1_last, label="fBM1", alpha=0.5, color=:red, bins=20)
-title!("Histogram of the last value\nBM1 vs fBM1\np-value = $pval")
+title!("Histogram of the last value BM1 vs fBM1\np-value = $pval")
 
 bm_2_last = x_bm2[:, end]
 fbm_2_last = x_fbm2[:, end]
@@ -121,15 +118,16 @@ plot(p1, p2, layout=(1,2), size=(800, 400), legend=:topleft)
 
 
 p1 = boxplot(["BM1"], bm_1_last, label="BM1", color=:blue, alpha = 0.5)   
-violin!(["BM1"], bm_1_last, label="BM1", alpha=0.7, color=:blue)
+violin!(["BM1"], bm_1_last, label="", alpha=0.7, color=:blue)
 
 p2 = boxplot(["fBM1"], fbm_1_last, label="fBM1", color=:red, alpha = 0.5)
-violin!(["fBM1"], fbm_1_last, label="fBM1", alpha=0.7, color=:red)
+violin!(["fBM1"], fbm_1_last, label="", alpha=0.7, color=:red)
 
 p3 = boxplot(["BM2"], bm_2_last, label="BM2", color=:blue, alpha = 0.5)
-violin!(["BM2"], bm_2_last, label="BM2", alpha=0.7, color=:blue)
+violin!(["BM2"], bm_2_last, label="", alpha=0.7, color=:blue)
 
 p4 = boxplot(["fBM2"], fbm_2_last, label="fBM2", color=:red, alpha = 0.5)
-violin!(["fBM2"], fbm_2_last, label="fBM2", alpha=0.7, color=:red)
+violin!(["fBM2"], fbm_2_last, label="", alpha=0.7, color=:red)
 
 plot(p1, p2, p3, p4, layout=(2,2), size=(800, 600), legend=:topleft)
+

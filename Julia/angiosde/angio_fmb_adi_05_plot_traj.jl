@@ -300,19 +300,19 @@ wrp_grad = wrapper_upwards_ct_gradient
 
 # simulate the sprout
 Plot_traj = true
-Plots.plot(title = "Trajectory of the sprout", xlabel = "x", ylabel = "y")
-n_reps = Int(1e5)
+plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
+n_reps = Int(1e2)
 L = cholesky(cov_matrix(n_steps, 0.5)).L
 # local scope for plotting
 # local scope for plotting
 
+
 let 
     if Plot_traj == true
-        global bm_final_x = zeros(n_reps, 2)
-        sum_x = zeros(2, n_steps)
-        sum_x2 = zeros(2, n_steps)
-        global bm_aver_x
-        global bm_var_x
+        max_y = 0
+        max_x = 0
+        min_x = 0 
+        min_y = 0
         for i = 1:n_reps
 
             x_plot, v_plot = simulate_sprout(
@@ -320,44 +320,7 @@ let
                 δ, # adimentioanl chemotactic responsiveness
                 wrp_grad,
                 Δτ; # time step
-
-                n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
-                v1 = v1, # initial velocity,
-                xa = [1.,1.],  
-                a0 = 10e-8,
-                div_grad_source = false,
-                random_source = "BM",
-                H = 0.5,
-                L = L
-            )
-            bm_final_x[i, :] = transpose(x_plot[:, end])
-            sum_x[:, :] = sum_x .+ x_plot 
-            sum_x2[:, :] = sum_x2 .+ x_plot .^ 2
-
-        end
-        bm_aver_x = sum_x ./ n_reps
-        aver_x2 = sum_x2 ./ n_reps
-        bm_var_x = aver_x2 .- aver_x .^ 2
-        
-    end
-end
-
-violin(bm_final_x[:, 1], title = "Violin plot of the final position of the sprout", xlabel = "", ylabel = "y")
-violin!(bm_final_x[:, 2], title = "Violin plot of the final position of the sprout", xlabel = "", ylabel = "y")
-
-# fbm
-
-let 
-    if Plot_traj == true
-        global fbm_final_x = zeros(n_reps, 2)
-        global distance_fbm = zeros(n_reps, 2)
-        for i = 1:n_reps
-
-            x_plot, v_plot = simulate_sprout(
-                x1, # initial position and velocity
-                δ, # adimentioanl chemotactic responsiveness
-                wrp_grad,
-                Δτ; # time step
+    
                 n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
                 v1 = v1, # initial velocity,
                 xa = [1.,1.],  
@@ -367,31 +330,26 @@ let
                 H = 0.5,
                 L = L
             )
-            final_pos = x_plot[:, end]
-            display(final_pos)
-            fbm_final_x[i, :] = transpose(final_pos)
-            distance_fbm[i, :] = 
-            stop
+            Plots.plot!(x_plot[1, :], x_plot[2, :], label="")
+            Plots.scatter!([x_plot[1, end]],[ x_plot[2, end]], markersize = 5, color = "red", label="")
+            if maximum(x_plot[2, :]) > max_y
+                max_y = maximum(x_plot[2, :])
+            end
+            if minimum(x_plot[2, :]) < min_y
+                min_y = minimum(x_plot[2, :])
+            end
+            if maximum(x_plot[1, :]) > max_x
+                max_x = maximum(x_plot[1, :])
+            end
+            if minimum(x_plot[1, :]) < min_x
+                min_x = minimum(x_plot[1, :])
+            end
         end
-
+        x_lims = range(min_x, max_x, length = 100)
+        y_lims = range(min_y, max_y, length = 100)
+        Plots.plot!(x_lims, y_lims.*0, color = "grey", label="", linestyle = :dot, width = 2)
+        Plots.plot!(x_lims.*0,y_lims, color = "grey", label="", linestyle = :dot, width = 2)
+        Plots.xlabel!(L"x [a.u.]")
+        Plots.ylabel!(L"y [a.u.]")
     end
 end
-
-
-pval_1 = round(pvalue(ApproximateTwoSampleKSTest(bm_final_x[:,1], fbm_final_x[:, 1])), digits=2)
-pval_2 = round(pvalue(ApproximateTwoSampleKSTest(bm_final_x[:,2], fbm_final_x[:, 2])), digits=2)
-
-
-plot1 = violin(["coord_x"],bm_final_x[:, 1], side = :left, label = "BM", color = :dodgerblue)
-violin!(["coord_x"],fbm_final_x[:, 1], side = :right, label = "fBM - H = 0.5", color = :lightslateblue)
-title!("Final position on x-axis. \nKSTest p-value: $pval_1")
-
-plot2 = violin(["coord_y"],bm_final_x[:, 2], side = :left, label = "BM", color = :orange)
-violin!(["coord_y"],fbm_final_x[:, 2], side = :right, label = "fBM - H = 0.5", color = :gold)
-title!("Final position on y-axis. \nKSTest p-value: $pval_2")
-plot(plot1, plot2, layout = (1,2), legend = :topright, size = (800, 600))
-
-
-pval_1 = round(pvalue(ApproximateTwoSampleKSTest(bm_var_x[1,:], fbm_var_x[1, :])), digits=3)
-pval_2 = round(pvalue(ApproximateTwoSampleKSTest(bm_var_x[2,:], fbm_var_x[2,:])), digits=3)
-

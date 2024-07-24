@@ -302,35 +302,35 @@ wrp_grad = wrapper_upwards_ct_gradient
 Plot_traj = true
 plot(title = "Trajectory of the sprout", xlabel = "x", ylabel = "y")
 n_reps = 100_000
-L = cholesky(cov_matrix(n_steps, 0.5)).L
+L = cholesky(cov_matrix(n_steps, 0.9)).L
 # local scope for plotting
 # local scope for plotting
 
-let 
-    global bm_final_x = zeros(n_reps, 2)
-    global bm_distance = zeros(n_reps, 1)
-    for i = 1:n_reps
+# let 
+#     global bm_final_x = zeros(n_reps, 2)
+#     global bm_distance = zeros(n_reps, 1)
+#     for i = 1:n_reps
 
-        x_plot, v_plot = simulate_sprout(
-            x1, # initial position and velocity
-            δ, # adimentioanl chemotactic responsiveness
-            wrp_grad,
-            Δτ; # time step
+#         x_plot, v_plot = simulate_sprout(
+#             x1, # initial position and velocity
+#             δ, # adimentioanl chemotactic responsiveness
+#             wrp_grad,
+#             Δτ; # time step
 
-            n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
-            v1 = v1, # initial velocity,
-            xa = [1.,1.],  
-            a0 = 10e-8,
-            div_grad_source = false,
-            random_source = "BM",
-            H = 0.5,
-            L = L
-        )
-        final_position = x_plot[:, end]
-        bm_final_x[i, :] = transpose(final_position)
-        bm_distance[i] = sqrt(final_position[1]^2 + final_position[2]^2)
-    end
-end
+#             n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
+#             v1 = v1, # initial velocity,
+#             xa = [1.,1.],  
+#             a0 = 10e-8,
+#             div_grad_source = false,
+#             random_source = "BM",
+#             H = 0.5,
+#             L = L
+#         )
+#         final_position = x_plot[:, end]
+#         bm_final_x[i, :] = transpose(final_position)
+#         bm_distance[i] = sqrt(final_position[1]^2 + final_position[2]^2)
+#     end
+# end
 
 
 
@@ -351,7 +351,7 @@ let
             a0 = 10e-8,
             div_grad_source = false,
             random_source = "fBM",
-            H = 0.5,
+            H = 0.9,
             L = L
         )
         final_pos = x_plot[:, end]
@@ -362,10 +362,10 @@ end
 
 ## Pickling
 
-JLD.save("jlds/brownian_motion_final_pos.jld", "bm_final_x", bm_final_x)
-JLD.save("jlds/brownian_motion_distance.jld", "bm_distance", bm_distance)
-JLD.save("jlds/fbm_final_pos05.jld", "fbm_final_x", fbm_final_x)
-JLD.save("jlds/fbm_distance05.jld", "distance_fbm", distance_fbm)
+# JLD.save("jlds/brownian_motion_final_pos.jld", "bm_final_x", bm_final_x)
+# JLD.save("jlds/brownian_motion_distance.jld", "bm_distance", bm_distance)
+JLD.save("jlds/fbm_final_pos09.jld", "fbm_final_x", fbm_final_x)
+JLD.save("jlds/fbm_distance09.jld", "distance_fbm", distance_fbm)
 
 
 

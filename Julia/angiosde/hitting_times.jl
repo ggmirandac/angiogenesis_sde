@@ -5,7 +5,6 @@ Pkg.activate(Base.current_project())
 Pkg.instantiate()
 using Plots, Distributions, Brownian, DataFrames, LaTeXStrings, Measures, StatsBase, LinearAlgebra,
     Random, Measurements, StatsPlots, HypothesisTests, StatsPlots, Pickle, JLD
-
 """
     divergent_gradient(x; force = 2)
 Calculates the gradient of the divergence of the gradient of the chemoattractant source
@@ -58,8 +57,8 @@ Returns a constant concentration gradient at every (x,y)
 - `xa`: chemoattractant source
 - `a0`: Initial concentration
 """
-function upwards_ct_gradient(x, xa, a0; force  = 2)
-    return [0, force] # up wards force of movement
+function upwards_ct_gradient(x, xa, a0; concentration  = 2)
+    return [0, concentration/a0] # up wards force of movement
     
 end
 
@@ -198,8 +197,8 @@ Wrapper function for the upwards constant gradient
 - xa: chemoattractant source
 """
 function wrapper_upwards_ct_gradient(x, xa, a0)
-    force = a0
-    return upwards_ct_gradient(x, xa, a0; force = force)
+    concentration = a0
+    return upwards_ct_gradient(x, xa, a0; concentration = concentration)
 end    
 
 
@@ -230,7 +229,8 @@ function simulate_sprout(
     const_up_grad = false,
     random_source = "BM",
     H = 0.5,
-    L = nothing
+    L = nothing,
+    wall = [0, 100]
 )
     x_history = zeros(2, n_steps)
     v_history = zeros(2, n_steps)
@@ -257,6 +257,7 @@ function simulate_sprout(
         end        
         # calculate the gradient
         gradient = w_gradient_function(x, xa, a0)
+        print(gradient)
         # if div_grad_source == true then generate 4 different gradients sources for each quadrant
         if div_grad_source
             if x[1] > 0 && x[2] > 0
@@ -281,84 +282,46 @@ function simulate_sprout(
         x = x .+ v .* Δτ
         θ = calculate_theta(x, x_history[:, i])
         φ = calculate_phi(x, xa, θ)
+        if wall !== nothing
+            # println(size(x[2,:]))
+            # print;
+            # println(x[2,:])
+            if x[2,:][1] > wall[2]
+
+                hit_time = i * Δτ
+                x_history = x_history[:, 1:i]
+                v_history = v_history[:, 1:i]
+                return hit_time, x_history, v_history
+            end
+        end
+                
     end 
-    return x_history, v_history
+    return n_steps * Δτ, x_history, v_history
 end
 
 
-# initial position and velocity
 x1 = [0.0, 0.0]
 v1 = [0.0, 0.0]
 # chemoattractant source
 xa = [0., 0.]
-δ = 3 # > 0  implies there is more chemotactic drift towards the source, < 0 more random
-Δτ = .01
-n_steps = Int(1e4)
+δ = 1 # > 0  implies there is more chemotactic drift towards the source, < 0 more random
+Δτ = .1
+n_steps = 15000
 
 wrp_grad = wrapper_upwards_ct_gradient
 
 
 # simulate the sprout
+
+n_reps = 1_000
+H = 0.99
+L = cholesky(cov_matrix(n_steps, H)).L
+wall_coord = [0, 50.]
+
+
+# plot the sprout
 Plot_traj = true
 plot(title = "Trajectory of the sprout", xlabel = "x", ylabel = "y")
-# n_reps = 100_000
-L = cholesky(cov_matrix(n_steps, 0.9)).L
-# local scope for plotting
-# local scope for plotting
-
-# let 
-#     global bm_final_x = zeros(n_reps, 2)
-#     global bm_distance = zeros(n_reps, 1)
-#     for i = 1:n_reps
-
-#         x_plot, v_plot = simulate_sprout(
-#             x1, # initial position and velocity
-#             δ, # adimentioanl chemotactic responsiveness
-#             wrp_grad,
-#             Δτ; # time step
-
-#             n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
-#             v1 = v1, # initial velocity,
-#             xa = [1.,1.],  
-#             a0 = 10e-8,
-#             div_grad_source = false,
-#             random_source = "BM",
-#             H = 0.5,
-#             L = L
-#         )
-#         final_position = x_plot[:, end]
-#         bm_final_x[i, :] = transpose(final_position)
-#         bm_distance[i] = sqrt(final_position[1]^2 + final_position[2]^2)
-#     end
-# end
-
-
-
-# let 
-   
-#     global fbm_final_x = zeros(n_reps, 2)
-#     global distance_fbm = zeros(n_reps, 1)
-#     for i = 1:n_reps
-
-#         x_plot, v_plot = simulate_sprout(
-#             x1, # initial position and velocity
-#             δ, # adimentioanl chemotactic responsiveness
-#             wrp_grad,
-#             Δτ; # time step
-#             n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
-#             v1 = v1, # initial velocity,
-#             xa = [1.,1.],  
-#             a0 = 10e-8,
-#             div_grad_source = false,
-#             random_source = "fBM",
-#             H = 0.9,
-#             L = L
-#         )
-#         final_pos = x_plot[:, end]
-#         fbm_final_x[i, :] = transpose(final_pos)
-#         distance_fbm[i] = sqrt(final_pos[1]^2 + final_pos[2]^2)
-#     end
-# end
 
 
 # plotiing
@@ -366,28 +329,31 @@ let
    
     global fbm_final_x = zeros(n_reps, 2)
     global distance_fbm = zeros(n_reps, 1)
-    
+    global inspect_x
     max_y = 0
     max_x = 0
     min_x = 0 
     min_y = 0
     plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
-    for i = 1:20
+    for i = 1:1
 
-        x_plot, v_plot = simulate_sprout(
-            x1, # initial position and velocity
-            δ, # adimentioanl chemotactic responsiveness
-            wrp_grad,
-            Δτ; # time step
-            n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
-            v1 = v1, # initial velocity,
-            xa = [1.,1.],  
-            a0 = 10e-8,
-            div_grad_source = false,
-            random_source = "fBM",
-            H = 0.9,
-            L = L
-        )
+        hit, x_plot, v_plot = simulate_sprout(
+                x1, # initial position and velocity
+                δ, # adimentioanl chemotactic responsiveness
+                wrp_grad,
+                Δτ; # time step
+                n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
+                v1 = v1, # initial velocity,
+                xa = [0, 100],  
+                a0 = 10e-8,
+                div_grad_source = false,
+                random_source = "BM",
+                H = H,
+                L = L,
+                wall = wall_coord
+            )
+        
+        inspect_x = x_plot
         Plots.plot!(x_plot[1, :], x_plot[2, :], label="")
         Plots.scatter!([x_plot[1, end]],[ x_plot[2, end]], markersize = 5, color = "red", label="")
 
@@ -414,38 +380,39 @@ end
 
 
 
-# ## Pickling
-
-# # JLD.save("jlds/brownian_motion_final_pos.jld", "bm_final_x", bm_final_x)
-# # JLD.save("jlds/brownian_motion_distance.jld", "bm_distance", bm_distance)
-# JLD.save("jlds/fbm_final_pos09.jld", "fbm_final_x", fbm_final_x)
-# JLD.save("jlds/fbm_distance09.jld", "distance_fbm", distance_fbm)
 
 
 
 
+# hit_times = zeros(n_reps)
+# for i in 1:n_reps
+#     hit = simulate_sprout(
+#                 x1, # initial position and velocity
+#                 δ, # adimentioanl chemotactic responsiveness
+#                 wrp_grad,
+#                 Δτ; # time step
+#                 n_steps = n_steps, # the number of steps to simulate this is sum_n_steps Δτ until
+#                 v1 = v1, # initial velocity,
+#                 xa = [0, 100],  
+#                 a0 = 10e-8,
+#                 div_grad_source = false,
+#                 random_source = "BM",
+#                 H = H,
+#                 L = L,
+#                 wall = wall_coord
+#             )
 
-# pval_1 = round(pvalue(ApproximateTwoSampleKSTest(bm_final_x[:,1], fbm_final_x[:, 1])), digits=2)
-# pval_2 = round(pvalue(ApproximateTwoSampleKSTest(bm_final_x[:,2], fbm_final_x[:, 2])), digits=2)
+#     hit_times[i] = hit
+    
+#     if i % 1000 == 0
+#         println("Simulation: ", i, " out of ", n_reps)
+#     end
+# #    println("Simulation: ", i, " out of ", n_reps)
+# end
 
-
-# plot1 = violin(["coord_x"],bm_final_x[:, 1], side = :left, label = "BM", color = :dodgerblue,
-# legend = :topleft)
-# violin!(["coord_x"],fbm_final_x[:, 1], side = :right, label = "fBM - H = 0.5", color = :lightslateblue,
-# legend = :topleft)
-# violin!(["coord_y"], bm_final_x[:, 2], side = :left, label = "BM", color = :orange,
-# legend = :topright)
-# violin!(["coord_y"],fbm_final_x[:, 2], side = :right, label = "fBM - H = 0.5", color = :gold)
-# title!("Final position of the sprout. \nKSTest p-value: $pval_1, $pval_2", legend = :topleft, size = (800, 600))
-# savefig(plot1,"angio_fmb_adi_05_position.svg")
-
-
-
-# pdis = round(pvalue(ApproximateTwoSampleKSTest(bm_distance[:], distance_fbm[:])), digits=3)
-# plot3 = boxplot(["fbm"],distance_fbm[:], side = :left, label = "fBM - H = 0.5", color = :dodgerblue)
-# violin!(["fbm"], distance_fbm[:], label = "", alpha = 0.5, color = :dodgerblue)
-# boxplot!(["bm"],bm_distance[:], side = :right, label = "BM", color = :lightslateblue)
-# violin!(["bm"],bm_distance[:], label = "", color = :lightslateblue, alpha = 0.5)
-# title!( "Final distance from the origin. \nKSTest p-value: $pdis", legend = :topright, size = (800, 600))
-# savefig(plot3,"angio_fmb_adi_05_metrics.svg")
-
+# # save hit time
+# # H = "BM"
+# H_string = replace(string(H), "." => "_")
+# name = string("hiting_time", "_", H_string)
+# name_file = string("jlds/",name, ".jld")
+# save(name_file, name, hit_times)

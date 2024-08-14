@@ -198,7 +198,7 @@ Wrapper function for the upwards constant gradient
 - xa: chemoattractant source
 """
 function wrapper_upwards_ct_gradient(x, xa, a0)
-    force = 10^(-0.5)
+    force = a0/a0
     return upwards_ct_gradient(x, xa, a0; force = force)
 end    
 
@@ -302,7 +302,8 @@ wrp_grad = wrapper_upwards_ct_gradient
 Plot_traj = true
 plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
 n_reps = Int(1e2)
-L = cholesky(cov_matrix(n_steps, 0.5)).L
+H = 0.9
+L = cholesky(cov_matrix(n_steps, H)).L
 # local scope for plotting
 # local scope for plotting
 
@@ -313,7 +314,7 @@ let
         max_x = 0
         min_x = 0 
         min_y = 0
-        for i = 1:n_reps
+        for i = 1:50
 
             x_plot, v_plot = simulate_sprout(
                 x1, # initial position and velocity
@@ -327,7 +328,7 @@ let
                 a0 = 10e-8,
                 div_grad_source = false,
                 random_source = "fBM",
-                H = 0.5,
+                H = H,
                 L = L
             )
             Plots.plot!(x_plot[1, :], x_plot[2, :], label="")

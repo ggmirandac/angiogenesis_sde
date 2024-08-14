@@ -257,7 +257,6 @@ function simulate_sprout(
         end        
         # calculate the gradient
         gradient = w_gradient_function(x, xa, a0)
-        print(gradient)
         # if div_grad_source == true then generate 4 different gradients sources for each quadrant
         if div_grad_source
             if x[1] > 0 && x[2] > 0
@@ -304,8 +303,8 @@ x1 = [0.0, 0.0]
 v1 = [0.0, 0.0]
 # chemoattractant source
 xa = [0., 0.]
-δ = 1 # > 0  implies there is more chemotactic drift towards the source, < 0 more random
-Δτ = .1
+δ = 1.2 # > 0  implies there is more chemotactic drift towards the source, < 0 more random
+Δτ = .01
 n_steps = 15000
 
 wrp_grad = wrapper_upwards_ct_gradient
@@ -313,31 +312,15 @@ wrp_grad = wrapper_upwards_ct_gradient
 
 # simulate the sprout
 
-n_reps = 1_000
+n_reps = 10_000
 H = 0.99
 L = cholesky(cov_matrix(n_steps, H)).L
 wall_coord = [0, 50.]
 
 
-# plot the sprout
-Plot_traj = true
-plot(title = "Trajectory of the sprout", xlabel = "x", ylabel = "y")
-
-
-# plotiing
-let 
-   
-    global fbm_final_x = zeros(n_reps, 2)
-    global distance_fbm = zeros(n_reps, 1)
-    global inspect_x
-    max_y = 0
-    max_x = 0
-    min_x = 0 
-    min_y = 0
-    plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
-    for i = 1:1
-
-        hit, x_plot, v_plot = simulate_sprout(
+hit_times = zeros(n_reps)
+for i in 1:n_reps
+    hit, x_hist, v_hist = simulate_sprout(
                 x1, # initial position and velocity
                 δ, # adimentioanl chemotactic responsiveness
                 wrp_grad,
@@ -347,46 +330,53 @@ let
                 xa = [0, 100],  
                 a0 = 10e-8,
                 div_grad_source = false,
-                random_source = "BM",
+                random_source = "fBM",
                 H = H,
                 L = L,
                 wall = wall_coord
             )
-        
-        inspect_x = x_plot
-        Plots.plot!(x_plot[1, :], x_plot[2, :], label="")
-        Plots.scatter!([x_plot[1, end]],[ x_plot[2, end]], markersize = 5, color = "red", label="")
 
-        if maximum(x_plot[2, :]) > max_y
-            max_y = maximum(x_plot[2, :])
-        end
-        if minimum(x_plot[2, :]) < min_y
-            min_y = minimum(x_plot[2, :])
-        end
-        if maximum(x_plot[1, :]) > max_x
-            max_x = maximum(x_plot[1, :])
-        end
-        if minimum(x_plot[1, :]) < min_x
-            min_x = minimum(x_plot[1, :])
-        end
+    hit_times[i] = hit
+    
+    if i % 1000 == 0
+        println("Simulation: ", i, " out of ", n_reps)
     end
-    x_lims = range(min_x, max_x, length = 100)
-    y_lims = range(min_y, max_y, length = 100)
-    Plots.plot!(x_lims, y_lims.*0, color = "grey", label="", linestyle = :dot, width = 2)
-    Plots.plot!(x_lims.*0,y_lims, color = "grey", label="", linestyle = :dot, width = 2)
-    Plots.xlabel!(L"x [a.u.]")
-    Plots.ylabel!(L"y [a.u.]")
+#    println("Simulation: ", i, " out of ", n_reps)
 end
 
+# save hit time
+# H = "BM"
+H_string = replace(string(H), "." => "_")
+name = string("hiting_time", "_", H_string)
+name_file = string("jlds/",name, ".jld")
+# violin(hit_times)
+save(name_file, name, hit_times)
 
 
 
 
 
 
-# hit_times = zeros(n_reps)
-# for i in 1:n_reps
-#     hit = simulate_sprout(
+
+# # plot the sprout
+# Plot_traj = true
+# plot(title = "Trajectory of the sprout", xlabel = "x", ylabel = "y")
+
+
+# # plotiing
+# let 
+   
+#     global fbm_final_x = zeros(n_reps, 2)
+#     global distance_fbm = zeros(n_reps, 1)
+#     global inspect_x
+#     max_y = 0
+#     max_x = 0
+#     min_x = 0 
+#     min_y = 0
+#     plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
+#     for i = 1:1
+
+#         hit, x_plot, v_plot = simulate_sprout(
 #                 x1, # initial position and velocity
 #                 δ, # adimentioanl chemotactic responsiveness
 #                 wrp_grad,
@@ -396,23 +386,35 @@ end
 #                 xa = [0, 100],  
 #                 a0 = 10e-8,
 #                 div_grad_source = false,
-#                 random_source = "BM",
+#                 random_source = "fBM",
 #                 H = H,
 #                 L = L,
 #                 wall = wall_coord
 #             )
+        
+#         inspect_x = x_plot
+#         Plots.plot!(x_plot[1, :], x_plot[2, :], label="")
+#         Plots.scatter!([x_plot[1, end]],[ x_plot[2, end]], markersize = 5, color = "red", label="")
 
-#     hit_times[i] = hit
-    
-#     if i % 1000 == 0
-#         println("Simulation: ", i, " out of ", n_reps)
+#         if maximum(x_plot[2, :]) > max_y
+#             max_y = maximum(x_plot[2, :])
+#         end
+#         if minimum(x_plot[2, :]) < min_y
+#             min_y = minimum(x_plot[2, :])
+#         end
+#         if maximum(x_plot[1, :]) > max_x
+#             max_x = maximum(x_plot[1, :])
+#         end
+#         if minimum(x_plot[1, :]) < min_x
+#             min_x = minimum(x_plot[1, :])
+#         end
 #     end
-# #    println("Simulation: ", i, " out of ", n_reps)
+#     x_lims = range(min_x, max_x, length = 100)
+#     y_lims = range(min_y, max_y, length = 100)
+#     Plots.plot!(x_lims, y_lims.*0, color = "grey", label="", linestyle = :dot, width = 2)
+#     Plots.plot!(x_lims.*0,y_lims, color = "grey", label="", linestyle = :dot, width = 2)
+#     Plots.xlabel!(L"x [a.u.]")
+#     Plots.ylabel!(L"y [a.u.]")
 # end
 
-# # save hit time
-# # H = "BM"
-# H_string = replace(string(H), "." => "_")
-# name = string("hiting_time", "_", H_string)
-# name_file = string("jlds/",name, ".jld")
-# save(name_file, name, hit_times)
+

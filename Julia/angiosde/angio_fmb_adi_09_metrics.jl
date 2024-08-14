@@ -291,18 +291,18 @@ x1 = [0.0, 0.0]
 v1 = [0.0, 0.0]
 # chemoattractant source
 xa = [0., 0.]
-δ = 3 # > 0  implies there is more chemotactic drift towards the source, < 0 more random
+δ = 1.2 # > 0  implies there is more chemotactic drift towards the source, < 0 more random
 Δτ = .01
-n_steps = Int(1e4)
+n_steps = 10_000
 
 wrp_grad = wrapper_upwards_ct_gradient
 
-
+H = 0.99
 # simulate the sprout
 Plot_traj = true
 plot(title = "Trajectory of the sprout", xlabel = "x", ylabel = "y")
 # n_reps = 100_000
-L = cholesky(cov_matrix(n_steps, 0.9)).L
+L = cholesky(cov_matrix(n_steps, H)).L
 # local scope for plotting
 # local scope for plotting
 
@@ -372,7 +372,7 @@ let
     min_x = 0 
     min_y = 0
     plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
-    for i = 1:20
+    for i = 1:10
 
         x_plot, v_plot = simulate_sprout(
             x1, # initial position and velocity
@@ -385,7 +385,7 @@ let
             a0 = 10e-8,
             div_grad_source = false,
             random_source = "fBM",
-            H = 0.9,
+            H = H,
             L = L
         )
         Plots.plot!(x_plot[1, :], x_plot[2, :], label="")

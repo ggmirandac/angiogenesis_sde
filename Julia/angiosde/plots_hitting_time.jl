@@ -16,8 +16,11 @@ read_ht = []
 for file in ht_var_files
     
     dict_var = JLD.load(file)
-   
-    push!(read_keys, collect(keys(dict_var))[1])
+    string_index = collect(keys(dict_var))[1]
+    string_index = replace(string(string_index)[13:end], "_" => ".")
+    string_index = string( string_index )
+    print(string_index)
+    push!(read_keys, string_index)
     push!(read_ht, collect(values(dict_var))[1])
 end 
 
@@ -28,4 +31,7 @@ end
 Plots.plot(title = "Hitting Time Distribution") 
 for i in 1:length(read_keys)
     violin!([read_keys[i]], read_ht[i], alpha = 0.5)
+
 end
+xlabel!("H Index")
+ylabel!("Hitting Time")

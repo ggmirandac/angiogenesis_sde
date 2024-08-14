@@ -302,7 +302,7 @@ wrp_grad = wrapper_upwards_ct_gradient
 Plot_traj = true
 plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
 n_reps = Int(1e2)
-H = 0.9
+H = 0.65
 L = cholesky(cov_matrix(n_steps, H)).L
 # local scope for plotting
 # local scope for plotting

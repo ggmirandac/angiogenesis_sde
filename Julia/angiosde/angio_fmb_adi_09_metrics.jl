@@ -364,15 +364,14 @@ L = cholesky(cov_matrix(n_steps, H)).L
 # plotiing
 let 
    
-    global fbm_final_x = zeros(n_reps, 2)
-    global distance_fbm = zeros(n_reps, 1)
+
     
     max_y = 0
     max_x = 0
     min_x = 0 
     min_y = 0
     plot(title = "Trajectory of the sprout - fBM", xlabel = "x", ylabel = "y")
-    for i = 1:10
+    for i = 1:100
 
         x_plot, v_plot = simulate_sprout(
             x1, # initial position and velocity

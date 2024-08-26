@@ -12,6 +12,7 @@ from fbm.sim.cholesky import CholeskyFBmGenerator
 import time
 import scipy.integrate as spi
 import statsmodels.api as sm
+import pandas as pd
 import scipy.stats as stats
 from joblib import Parallel, delayed
 from functools import partial
@@ -106,43 +107,61 @@ class AngioSimulation:
             xi_1 = x_history[step, :]
             theta = AngioSimulation.theta_ang(xi, xi_1)
             phi = AngioSimulation.phi_ang(xi, xa, theta)
-            # print(np.degrees(theta))
+            if theta is None or phi is None:
+                crop_index = step
+                x_history = x_history[:crop_index, :]
+                v_history = v_history[:crop_index, :]
+                v_descriptions = v_descriptions[:crop_index, :]
+                return x_history, v_history, v_descriptions
 
         return x_history, v_history, v_descriptions
+    @staticmethod
+    def hit_generation(H, n_steps, dtau, delta, Gradient, xa, wall):
 
-    def hit_generation(self, _=None):
+        x_history = np.zeros((n_steps + 1, 2))
+        v_history = np.zeros((n_steps + 1, 2))
+        v_descriptions = np.zeros((n_steps + 1, 6))
 
-        x_history = np.zeros((self.n_steps + 1, 2))
-        v_history = np.zeros((self.n_steps + 1, 2))
         xi = np.array([0, 0])
         vi = np.array([0, 0])
-        dW = np.zeros((self.n_steps, 2))
+        dW = np.zeros((n_steps, 2))
         dW[:, 0] = DaviesHarteFBmGenerator().generate_fGn(
-            self.H, size=self.n_steps) * self.dtau ** self.H
+            H, size=n_steps) * dtau ** H
         dW[:, 1] = DaviesHarteFBmGenerator().generate_fGn(
-            self.H, size=self.n_steps) * self.dtau ** self.H
+            H, size=n_steps) * dtau ** H
 
         theta = np.pi/2
-        phi = self.phi_ang(xi, self.xa, theta)
-        for step in range(0, self.n_steps):
-            v_res = - vi * self.dtau  # resistance to movement
+        phi = AngioSimulation.phi_ang(xi, xa, theta)
+        for step in range(0, n_steps):
+            v_res = - vi * dtau  # resistance to movement
             v_rand = dW[step]
-            v_chem = self.delta * self.Gradient.calculate_gradient(xi) * \
-                np.sin(phi/2) * self.dtau
-
+            v_chem = delta * Gradient.calculate_gradient(xi) * np.sin(phi/2) * dtau
+            v_descriptions[step + 1, :] = np.array(
+                [v_res[0], v_res[1], v_rand[0], v_rand[1], v_chem[0], v_chem[1]])
+            
             # print(v_chem)
             vi = vi + v_res + v_rand + v_chem
-            xi = xi + vi * self.dtau
+            xi = xi + vi * dtau
             x_history[step + 1, :] = xi
             v_history[step + 1, :] = vi
             xi_1 = x_history[step, :]
-            theta = self.theta_ang(xi, xi_1)
-            phi = self.phi_ang(xi, self.xa, theta)
-            # print(np.degrees(theta))
+            theta = AngioSimulation.theta_ang(xi, xi_1)
+            phi = AngioSimulation.phi_ang(xi, xa, theta)
+            if phi is None or theta is None:
+                crop_index = step
+                x_history = x_history[:crop_index, :]
+                v_history = v_history[:crop_index, :]
+                v_descriptions = v_descriptions[:crop_index, :]
+                return x_history, v_history, v_descriptions, step * dtau
 
-            if xi[1] >= self.wall:
-                return step * self.dtau
-        return None
+            if xi[1] >= wall:
+                crop_index = step
+                x_history = x_history[:crop_index, :]
+                v_history = v_history[:crop_index, :]
+                v_descriptions = v_descriptions[:crop_index, :]
+                return x_history, v_history, v_descriptions, step * dtau
+            
+        return x_history, v_history, v_descriptions , None    
 
     @staticmethod
     def theta_ang(xi, xi_1):
@@ -153,10 +172,21 @@ class AngioSimulation:
 
         den = x_dir_norm
 
-        theta = np.acos(
-            np.round(num / den, decimals=10)
-        )
 
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error')
+            try:
+                theta = np.acos(
+                    np.round(num/den, decimals=10)
+                )
+
+            except Warning as e:
+                # print(num / den, num, den)
+                theta = np.acos(
+                    np.round(num/den, decimals=10)
+                )
+                
+                return None
         return theta
 
     @staticmethod
@@ -174,10 +204,12 @@ class AngioSimulation:
                 )
 
             except Warning as e:
-
+                print(num / den, num, den)
                 phi = np.acos(
                     np.round(num/den, decimals=3)
                 )
+                
+                return None
 
         return phi
 
@@ -200,7 +232,12 @@ class AngioSimulation:
             init_time = time.time()
 
             for i in range(self.n_reps):
-                ht = self.hit_generation()
+                result = AngioSimulation.hit_generation(
+                    self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa,
+                    self.wall
+                )
+
+                self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'], ht = result
 
                 self.hit_times.append(ht)
 
@@ -227,10 +264,13 @@ class AngioSimulation:
             init_time = time.time()
 
             for i in range(self.n_reps):
-                ht = self.hit_generation()
+                result = AngioSimulation.hit_generation(
+                    self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa,
+                    self.wall
+                )
 
+                self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'], ht = result
                 self.hit_times.append(ht)
-
                 delta_time = (time.time() - init_time)
                 minutes, seconds = divmod(delta_time, 60)
                 if i % self.step == 0:
@@ -241,14 +281,15 @@ class AngioSimulation:
         fig, ax = plt.subplots(figsize=(10, 10), dpi=300)
 
         for sprout in self.x_storage.values():
+
             ax.plot(sprout[:, 0], sprout[:, 1])
             ax.scatter(sprout[-1, 0], sprout[-1, 1])
+        plt.show()
 
     def plot_sprout_description(self):
         fig, ax = plt.subplots(5, 3, figsize=(20, 20))
 
         # plot_of_velocities
-        time = np.arange(0, self.n_steps + 1) * self.dtau
         # DONE: add All velocities # DONE
         for val in self.vd_storage.values():
             # unpack values
@@ -259,6 +300,7 @@ class AngioSimulation:
             v_chemx = val[:, 4]
             v_chemy = val[:, 5]
 
+            time = np.arange(0, len(v_resx))
             # resistance to movement
             ax[0, 0].plot(time, v_resx)
             ax[0, 1].plot(time, v_resy)
@@ -279,6 +321,7 @@ class AngioSimulation:
         for val in self.v_storage.values():
             x_cord = val[:, 0]
             y_cord = val[:, 1]
+            time = np.arange(0, len(x_cord))
             ax[3, 0].plot(time, x_cord)
             ax[3, 1].plot(time, y_cord)
             ax[3, 2].plot(x_cord, y_cord)
@@ -287,6 +330,7 @@ class AngioSimulation:
         for val in self.x_storage.values():
             x_cord = val[:, 0]
             y_cord = val[:, 1]
+            time = np.arange(0, len(x_cord))
             ax[4, 0].plot(time, x_cord)
             ax[4, 1].plot(time, y_cord)
             ax[4, 2].plot(x_cord, y_cord)
@@ -467,34 +511,47 @@ class AngioSimulation:
         non_reach = self.hit_times.count(None)
         porcentage_nr = np.round(non_reach/len(self.hit_times) * 100, 2)
 
-        vp = ax.violinplot(self.hit_times, [1])
-        bp = ax.boxplot(self.hit_times, [1])
+        reaching = [ht for ht in self.hit_times if ht is not None]
+        vp = ax.violinplot(reaching, [1])
+        bp = ax.boxplot(reaching, [1])
         ax.legend(
             [f'n° non-reaching sprouts: \n - {non_reach}\n - {porcentage_nr}%'])
         ax.set_xticks([1], [f'H = {self.H}'])
 
         ax.set_yticks(
-            np.round(np.linspace(np.min(self.hit_times),
-                     np.max(self.hit_times), 10), 1),
+            np.round(np.linspace(np.min(reaching),
+                     np.max(reaching), 10), 1),
 
         )
 
         plt.show()
 
+    def save_data(self):
+        hitting_times = self.hit_times
+        sprouts = self.x_storage
+        velocities = self.v_storage
+        velocities_description = self.vd_storage
+         
+        # create pandas dataframe from the data
+        hit_pd = pd.DataFrame(hitting_times, columns=['Hitting Time'])
+        # sprouts_pd = pd.DataFrame(sprouts, columns=['Sprouts_x', 'Sprouts_y'])
+        # velocities_pd = pd.DataFrame(velocities, columns=['Velocities_x', 'Velocities_y'])
+        hit_pd.to_csv('hit_times.csv', index=False)
+        
 
 # %% Main body
 if __name__ == "__main__":
-    n_reps = 2
-    Hurst_index = 0.5
+    n_reps = 100
+    Hurst_index = 0.99
     n_steps = 10_000
     dtau = 1
     delta = 3  # TODO: review the delta effect over the simulation
-    mode = 'Simulation'
+    mode = 'HitTime'
     A_sim = AngioSimulation(n_reps, Hurst_index, n_steps, dtau, delta,
                             xa=[0, 10_000],
                             mode=mode,
                             wall=1_000, )
-    A_sim.debbug()
+    A_sim.simulate(n_jobs=1)
     if mode == 'Simulation':
 
         # A_sim.plot_sprout_description()
@@ -502,4 +559,7 @@ if __name__ == "__main__":
 
     elif mode == 'HitTime':
         A_sim.plot_hit()
+        A_sim.plot_sprouts()
+        A_sim.plot_sprout_description()
+        A_sim.save_data()
 # %%

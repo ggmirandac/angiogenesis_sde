@@ -94,7 +94,7 @@ class AngioSimulation:
             v_res = - vi * dtau  # resistance to movement
             v_rand = dW[step]
             v_chem = delta * Gradient.calculate_gradient(xi) * \
-                np.sin(phi/2) * dtau
+                np.sin(np.abs(phi/2)) * dtau
 
             # print(v_chem)
             v_descriptions[step + 1, :] = np.array(
@@ -135,7 +135,7 @@ class AngioSimulation:
         for step in range(0, n_steps):
             v_res = - vi * dtau  # resistance to movement
             v_rand = dW[step]
-            v_chem = delta * Gradient.calculate_gradient(xi) * np.sin(phi/2) * dtau
+            v_chem = delta * Gradient.calculate_gradient(xi) * np.sin(np.abs(phi/2)) * dtau
             v_descriptions[step + 1, :] = np.array(
                 [v_res[0], v_res[1], v_rand[0], v_rand[1], v_chem[0], v_chem[1]])
             
@@ -165,26 +165,20 @@ class AngioSimulation:
 
     @staticmethod
     def theta_ang(xi, xi_1):
-        x_axis = np.array([1, 0])
-        x_dir = xi - xi_1
-        x_dir_norm = np.linalg.norm(x_dir)
-        num = np.dot(x_axis, x_dir)
-
-        den = x_dir_norm
+        num = (xi[1] - xi_1[1])
+        den = (xi[0] - xi_1[0])
 
 
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
             try:
-                theta = np.acos(
-                    np.round(num/den, decimals=10)
+                theta = np.arctan2(
+                    num, den
                 )
 
+                if theta < 0:
+                    theta += 2 * np.pi
             except Warning as e:
-                # print(num / den, num, den)
-                theta = np.acos(
-                    np.round(num/den, decimals=10)
-                )
                 
                 return None
         return theta
@@ -213,8 +207,8 @@ class AngioSimulation:
 
         return phi
 
-    def simulate(self, n_jobs):
-        if self.mode == 'Simulation':
+    def simulate(self, n_jobs = 1):
+        if self.mode == 'Simulate':
             init_time = time.time()
 
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
@@ -291,6 +285,8 @@ class AngioSimulation:
 
         # plot_of_velocities
         # DONE: add All velocities # DONE
+        max_time = 0
+        min_time = np.inf   
         for val in self.vd_storage.values():
             # unpack values
             v_resx = val[:, 0]
@@ -316,6 +312,10 @@ class AngioSimulation:
             ax[2, 1].plot(time, v_chemy)
             ax[2, 2].plot(time, v_chemy)
 
+            if max(time) > max_time:
+                max_time = max(time)
+            if min(time) < min_time:
+                min_time = min(time)
         # plot of velocities
 
         for val in self.v_storage.values():
@@ -339,13 +339,13 @@ class AngioSimulation:
         ax[0, 0].set_title('Resistance Component - x')
         ax[0, 0].set_xlabel('Time')
         ax[0, 0].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[0, 0].set_ylabel('Velocity_x')
 
         ax[0, 1].set_title('Resistance Component - y')
         ax[0, 1].set_xlabel('Time')
         ax[0, 1].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[0, 1].set_ylabel('Velocity_y')
 
         ax[0, 2].set_title('Resistence Component - x,y')
@@ -356,13 +356,13 @@ class AngioSimulation:
         ax[1, 0].set_title('Random Component - x')
         ax[1, 0].set_xlabel('Time')
         ax[1, 0].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[1, 0].set_ylabel(r'Velocity_x')
 
         ax[1, 1].set_title('Random Component - y')
         ax[1, 1].set_xlabel('Time')
         ax[1, 1].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[1, 1].set_ylabel(r'Velocity_y')
 
         ax[1, 2].set_title('Random Component - x,y')
@@ -373,13 +373,13 @@ class AngioSimulation:
         ax[2, 0].set_title('Chemoattractant Component - x')
         ax[2, 0].set_xlabel('Time')
         ax[2, 0].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[2, 0].set_ylabel(r'Velocity_x')
 
         ax[2, 1].set_title('Chemoattractant Component - y')
         ax[2, 1].set_xlabel('Time')
         ax[2, 1].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[2, 1].set_ylabel(r'Velocity_y')
 
         ax[2, 2].set_title('Chemoattractant Component - x,y')
@@ -392,13 +392,13 @@ class AngioSimulation:
         ax[3, 0].set_title('Total Velocity')
         ax[3, 0].set_xlabel('Time')
         ax[3, 0].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[3, 0].set_ylabel(r'Velocity_x')
 
         ax[3, 1].set_title('Total Velocity')
         ax[3, 1].set_xlabel('Time')
         ax[3, 1].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[3, 1].set_ylabel(r'Velocity_y')
 
         ax[3, 2].set_title('Total Velocity')
@@ -410,13 +410,13 @@ class AngioSimulation:
         ax[4, 0].set_title('Sprout - x')
         ax[4, 0].set_xlabel('Time')
         ax[4, 0].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[4, 0].set_ylabel(r'Position_x')
 
         ax[4, 1].set_title('Sprout - y')
         ax[4, 1].set_xlabel('Time')
         ax[4, 1].set_xticks(
-            np.round(np.linspace(np.min(time), np.max(time), 10), 2))
+            np.round(np.linspace(min_time, max_time, 10), 2))
         ax[4, 1].set_ylabel(r'Position_y')
 
         ax[4, 2].set_title('Sprout - x,y')
@@ -526,7 +526,7 @@ class AngioSimulation:
 
         plt.show()
 
-    def save_data(self):
+    def save_data(self, file_name):
         hitting_times = self.hit_times
         sprouts = self.x_storage
         velocities = self.v_storage
@@ -536,26 +536,30 @@ class AngioSimulation:
         hit_pd = pd.DataFrame(hitting_times, columns=['Hitting Time'])
         # sprouts_pd = pd.DataFrame(sprouts, columns=['Sprouts_x', 'Sprouts_y'])
         # velocities_pd = pd.DataFrame(velocities, columns=['Velocities_x', 'Velocities_y'])
-        hit_pd.to_csv('hit_times.csv', index=False)
+        hit_pd.to_csv(f'{file_name}.csv', index=False)
         
 
 # %% Main body
 if __name__ == "__main__":
-    n_reps = 100
-    Hurst_index = 0.99
-    n_steps = 10_000
-    dtau = 1
-    delta = 3  # TODO: review the delta effect over the simulation
-    mode = 'HitTime'
+    n_reps = 10
+    Hurst_index = 0.95
+    n_steps = 30_000
+    dtau = 1e-3
+    delta = 0.95  # TODO: review the delta effect over the simulation
+    mode = 'Simulate'
     A_sim = AngioSimulation(n_reps, Hurst_index, n_steps, dtau, delta,
                             xa=[0, 10_000],
                             mode=mode,
-                            wall=1_000, )
-    A_sim.simulate(n_jobs=1)
-    if mode == 'Simulation':
+                            wall=50, )
 
+    # Note
+        # The more hurst index increases the less the delta imports
+        # TODO: Analyze the distributions of the same hurst index at different delta coefficient
+    A_sim.simulate(n_jobs=1)
+    if mode == 'Simulate':
+        A_sim.plot_sprouts()
         # A_sim.plot_sprout_description()
-        A_sim.plot_autocorrelation()
+        #A_sim.plot_autocorrelation()
 
     elif mode == 'HitTime':
         A_sim.plot_hit()

@@ -209,7 +209,7 @@ class AngioSimulation:
 
     def simulate(self, n_jobs = 1):
         if self.mode == 'Simulate':
-            init_time = time.time()
+            # init_time = time.time()
 
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
                 self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa) for _ in range(self.n_reps))
@@ -219,17 +219,17 @@ class AngioSimulation:
                 delta_time = (time.time() - init_time)
                 minutes, seconds = divmod(delta_time, 60)
 
-            print(
-                f"Simulation of {self.n_reps} Sprouts generated. Time: {int(minutes)}:{seconds:.2f}")
+            # print(
+            #     f"Simulation of {self.n_reps} Sprouts generated. Time: {int(minutes)}:{seconds:.2f}")
 
         if self.mode == 'HitTime':
             init_time = time.time()
 
-            for i in range(self.n_reps):
-                result = AngioSimulation.hit_generation(
-                    self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa,
-                    self.wall
-                )
+
+            results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.hit_generation)(
+                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall) for _ in range(self.n_reps))
+            
+            for i, result in enumerate(results):
 
                 self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'], ht = result
 
@@ -237,9 +237,9 @@ class AngioSimulation:
 
                 delta_time = (time.time() - init_time)
                 minutes, seconds = divmod(delta_time, 60)
-                if i % self.step == 0:
-                    print(
-                        f"Sprout {i+1} of {self.n_reps} Generated. Time: {int(minutes)}:{seconds:.2f}")
+                # if i % self.step == 0:
+                    # print(
+                    #     f"Sprout {i+1} of {self.n_reps} Generated. Time: {int(minutes)}:{seconds:.2f}")
 
     def debbug(self):
         if self.mode == 'Simulation':

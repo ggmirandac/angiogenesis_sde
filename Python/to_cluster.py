@@ -7,7 +7,7 @@ import numpy as np
 n_reps = 100
 Hurst_index = 0.5
 n_steps = 10_000
-dtau = .01
+dtau = .001
 delta = 1  # TODO: review the delta effect over the simulation
 mode = 'Simulate'
 

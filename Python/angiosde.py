@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from fbm.sim.davies_harte import DaviesHarteFBmGenerator
 from fbm.sim.cholesky import CholeskyFBmGenerator
 import time
-import scipy.integrate as spi
+# import scipy.integrate as spi
 import statsmodels.api as sm
 import pandas as pd
 import scipy.stats as stats

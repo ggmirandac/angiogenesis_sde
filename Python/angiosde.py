@@ -46,7 +46,8 @@ class AngioSimulation:
     def __init__(self, n_reps, Hurst_index, n_steps, dtau, delta,
                  mode='Simulate',
                  Grad=GradientConstant(0.01),
-                 xa=[0, 10],
+                 only_ht = True,
+                 xa = [0, 10],
                  wall=None,  # y coord of wall
                  ):
         self.n_reps = n_reps
@@ -57,14 +58,17 @@ class AngioSimulation:
         self.mode = mode
         self.Gradient = Grad
         self.xa = np.array(xa)
-
+        self.only_ht = only_ht # true -> store all the history, else only hitting time
         # storage_of_sprouts
         self.x_storage = {}
         self.v_storage = {}
         self.vd_storage = {}
 
         # storage of hiting_times
-        self.hit_times = []
+        if self.only_ht == False:
+            self.hit_times = [] 
+        else:
+            self.hit_times = None
         self.wall = wall
         if mode == "HitTime":
             if wall is None:
@@ -116,7 +120,8 @@ class AngioSimulation:
 
         return x_history, v_history, v_descriptions
     @staticmethod
-    def hit_generation(H, n_steps, dtau, delta, Gradient, xa, wall):
+    def hit_generation(H, n_steps, dtau, delta, Gradient, xa, wall,
+                       only_ht):
 
         x_history = np.zeros((n_steps + 1, 2))
         v_history = np.zeros((n_steps + 1, 2))
@@ -159,8 +164,12 @@ class AngioSimulation:
                 x_history = x_history[:crop_index, :]
                 v_history = v_history[:crop_index, :]
                 v_descriptions = v_descriptions[:crop_index, :]
+                if only_ht:
+                    return step*dtau
                 return x_history, v_history, v_descriptions, step * dtau
-            
+        
+        if only_ht:
+            return None
         return x_history, v_history, v_descriptions , None    
 
     @staticmethod
@@ -210,7 +219,6 @@ class AngioSimulation:
     def simulate(self, n_jobs = 1):
         if self.mode == 'Simulate':
             # init_time = time.time()
-
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
                 self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa) for _ in range(self.n_reps))
 
@@ -222,12 +230,19 @@ class AngioSimulation:
             # print(
             #     f"Simulation of {self.n_reps} Sprouts generated. Time: {int(minutes)}:{seconds:.2f}")
 
-        if self.mode == 'HitTime':
+        if self.mode == 'HitTime' and self.only_ht == True:
+            results = Parallel(n_jobs = n_jobs, backend='loky', verbose=0)(delayed(AngioSimulation.hit_generation)(
+                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, self.only_ht
+            ) for _ in range(self.n_reps))
+            
+            self.hit_times = results
+        
+        if self.mode == 'HitTime' and self.only_ht == False:
+            
             init_time = time.time()
 
-
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.hit_generation)(
-                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall) for _ in range(self.n_reps))
+                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, self.only_ht) for _ in range(self.n_reps))
             
             for i, result in enumerate(results):
 

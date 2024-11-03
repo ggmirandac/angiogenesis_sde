@@ -224,8 +224,8 @@ class AngioSimulation:
 
             for i, result in enumerate(results):
                 self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'] = result
-                delta_time = (time.time() - init_time)
-                minutes, seconds = divmod(delta_time, 60)
+                # delta_time = (time.time() - init_time)
+                # minutes, seconds = divmod(delta_time, 60)
 
             # print(
             #     f"Simulation of {self.n_reps} Sprouts generated. Time: {int(minutes)}:{seconds:.2f}")

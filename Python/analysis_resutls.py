@@ -112,12 +112,17 @@ if __name__ == '__main__':
     #                       Delta = 1)
     # batch_histogram_hurst('h_change_closer_from_cluster',
     #                       Delta = 1)
-    batch_histogram_hurst('h_change_all_wall_at_1_from_cluster',
+    # batch_histogram_hurst('h_change_all_wall_at_1_from_cluster',
+    #                       Delta = 1,
+    #                       xlims=[0,10],
+    #                       kde = True)
+    # batch_histogram_hurst('h_change_all_wall_at_10_from_cluster',
+    #                       Delta = 1,
+    #                       xlims=[0,100],
+    #                       kde = True)
+    
+    batch_histogram_hurst('h_change_all_wall_at_5_from_cluster',
                           Delta = 1,
-                          xlims=[0,10],
-                          kde = True)
-    batch_histogram_hurst('h_change_all_wall_at_10_from_cluster',
-                          Delta = 1,
-                          xlims=[0,100],
+                          xlims=[0,40],
                           kde = True)
 # %%

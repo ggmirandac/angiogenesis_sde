@@ -19,12 +19,12 @@ for de in list_delta:
 
     A_sim = AngioSimulation(n_reps, Hurst_index, n_steps, dtau, de,
                         xa=[0, 10_000],
-                        mode="HitTime",
+                        mode=mode,
                         wall=1_000)
     A_sim.simulate(n_jobs=n_jobs)
     A_sim.plot_sprouts()
-    folder = 'change_delta_075'
-    filen = 'hit_time_d_' + str(round(de, 3)).replace('.','_')    
-    A_sim.save_data(join(folder, filen))
+    # folder = 'change_delta_075'
+    # filen = 'hit_time_d_' + str(round(de, 3)).replace('.','_')    
+    # A_sim.save_data(join(folder, filen))
 
 # %%

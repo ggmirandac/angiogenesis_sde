@@ -32,7 +32,20 @@ def read_wall_hurst(folder: str)->dict:
     
     return dict_out
 
-
+def mann_witney_u_dict(dict_wall, wall, h1_compare):
+    dict_work = dict_wall[wall].copy()
+    get_h1 = dict_work[h1_compare]
+    # clean h1 nan values
+    get_h1 = get_h1[~np.isnan(get_h1)]
+    dict_out = {}
+    for h2 in dict_work.keys():
+        if h2 == h1_compare:
+            continue
+        # clean h2 nan values
+        get_h2 = dict_work[h2]
+        get_h2 = get_h2[~np.isnan(get_h2)]
+        dict_out[h2] = stats.mannwhitneyu(get_h1, get_h2, alternative = 'two-sided').pvalue
+    return dict_out
 
     
 def hellinger_distance(kde_1, kde_2, linspa):   
@@ -78,6 +91,21 @@ def hellinger_distance_dict(dict_wall, wall, h1_compare):
         dict_out[h2] = hellinger_distance(kde_h1, kde_h2, linspa)
     return dict_out
 
+def ks_distance_dict(dict_wall, wall, h1_compare):
+    dict_work = dict_wall[wall].copy()
+    get_h1 = dict_work[h1_compare]
+    # clean h1 nan values
+    linspa = np.linspace(0, 100, 1_000)
+    dict_out = {}
+    for h2 in dict_work.keys():
+        if h2 == h1_compare:
+            continue
+        # clean h2 nan values
+        get_h2 = dict_work[h2]
+        get_h2 = get_h2[~np.isnan(get_h2)]
+
+        dict_out[h2] = stats.ks_2samp(get_h1, get_h2, nan_policy = 'omit').pvalue
+    return dict_out
 
 def plot_hellinger_distance(dict_wall, h1_compare):
     fig, ax = plt.subplots(figsize = (15,5), dpi = 600)
@@ -85,7 +113,6 @@ def plot_hellinger_distance(dict_wall, h1_compare):
     color_map = plt.get_cmap('coolwarm', len_h)
     for key in dict_wall.keys():
         dict_hellinger = hellinger_distance_dict(dict_wall, key, h1_compare)
-        
         # plot in the x axis the wall values and in the y axis the hellinger distance
         values_hell = np.array(list(dict_hellinger.values())).T
         ax.boxplot(values_hell[0], positions = [key], widths = 0.5)
@@ -101,10 +128,42 @@ def plot_hellinger_distance(dict_wall, h1_compare):
                                     bbox_to_anchor=(1.05, 1), loc='upper left')
             #   ,bbox_to_anchor=(1.05, 1), loc='upper left')
     ax.set_title(f'Hellinger distance between Hurst = {h1_compare} and the others')
+    ax.set_xlabel('Wall distance [a.u.]')
+    ax.set_ylabel('Hellinger distance')
     plt.show()
     
 
-
+def plot_ks_pval(dict_wall, h1_compare, log = False):
+    fig, ax = plt.subplots(figsize = (15,5), dpi = 600)
+    len_h = len(dict_wall[list(dict_wall.keys())[0]].values())
+    color_map = plt.get_cmap('coolwarm', len_h)
+    for key in dict_wall.keys():
+        dict_ks = ks_distance_dict(dict_wall, key, h1_compare)
+        if key == 26:
+            print(dict_ks)
+        # plot in the x axis the wall values and in the y axis the hellinger distance
+        values_ks = np.array(list(dict_ks.values())).T
+        # print(values_ks)
+        ax.boxplot(values_ks, positions = [key], widths = 0.5)
+        # asign a color to each h value:
+        # order the dict_hellinger by the keys
+        dict_ks = dict(sorted(dict_ks.items()))   
+        for i, h in enumerate(dict_ks.keys()):
+            ax.scatter(key, dict_ks[h], color = color_map(i) )
+    
+    ax.legend(handles = [plt.Line2D([0], [0], marker='o', color='w', label=f'Hurst = {h}',
+                                    markerfacecolor=color_map(i), markersize=10) for i, h in enumerate(dict_ks.keys())],
+                                    title = 'Hurst', title_fontsize = 'small', fontsize = 'small',
+                                    bbox_to_anchor=(1.05, 1), loc='upper left')
+            #   ,bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.set_title(f'Kolmogorov-Smirnov between Hurst = {h1_compare} and the others')
+    ax.set_xlabel('Wall distance [a.u.]')
+    ax.set_ylabel('KS p-value')
+    if log == True:
+        ax.set_yscale('log')
+    # ax.set_ylim([1e-5, 1])
+    plt.show()
+    
 def wall_plot(dict_wall, wall,xlims = [0,100],
                     kde = True)->None:
     
@@ -138,5 +197,6 @@ if __name__ == '__main__':
     # delect the 0 key from the dictionary
     del dict_hwall[0]
     # dict_hwall
-    plot_hellinger_distance(dict_hwall, 0.5)
+    plot_ks_pval(dict_hwall, 0.5, log = True)
+    plot_ks_pval(dict_hwall, 0.5, log = False)
 # %%

@@ -1,33 +1,32 @@
 #%% Running
-from angiosde import AngioSimulation
+from angiosde import AngioSimulation, ConstantGradient, LinearGradient
 from os.path import join 
 import numpy as np
 import matplotlib.pyplot as plt
 # parameters
 
-n_reps = 1000
-Hurst_index = 0.5
+n_reps = 10
+Hurst_index = 0.75
 n_steps = 100_000
 dtau = .001
 delta = 1  # TODO: review the delta effect over the simulation
 mode = 'Simulate'
 
+# lin_gradient = LinearGradient(0.1, [0, 25], 0.01)
+const_gradient = ConstantGradient(0.1)
 
 list_H =  [0.5]
 # for h in list_H:
 for h in list_H:
     A_sim = AngioSimulation(n_reps, h, n_steps, dtau, delta,
                         xa=[0, 10_000],
-                        mode="HitTime",
+                        mode="Simulate",
                         wall=25, 
-                        only_ht=True)
+                        only_ht=True, 
+                        Grad=const_gradient)
     A_sim.simulate(n_jobs=10)
-    hit_times = A_sim.hit_times
-    
-    z_o_ht = [1 if x == None else 0 for x in hit_times]
-    print(sum(z_o_ht))
-    plt.hist([np.nan if x == None else x for x in hit_times])
-    
+
+    A_sim.plot_sprouts()
     # h_str = str(h).replace('.','_')
     # file_name = join('hit_time_d_05', f'hit_time{h_str}')
     # A_sim.save_data(file_name)
@@ -35,7 +34,20 @@ for h in list_H:
     # file_name = 'hit_time_' + str(h) 
     # A_sim.save_data(file_name)
 
+#%%
 
+# mesh_grid = np.meshgrid(np.linspace(-10, 10, 5), np.linspace(-10, 10, 5), indexing='ij')
+# X, Y = mesh_grid
+# Grad = GradientConstant(0.1)
+# X_direction = np.zeros_like(X)
+# Y_direction = np.zeros_like(Y)
+# for i in range(5):
+#     for j in range(5):
+#         X_direction[i, j], Y_direction[i, j] = Grad.calculate_gradient([X[i, j], Y[i, j]])
+
+
+
+# plt.quiver(X, Y, X_direction, Y_direction)
 
 # %%
 

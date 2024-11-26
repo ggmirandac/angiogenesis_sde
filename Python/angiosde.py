@@ -14,6 +14,7 @@ import time
 import statsmodels.api as sm
 import pandas as pd
 import scipy.stats as stats
+from scipy.spatial import distance
 from joblib import Parallel, delayed
 from functools import partial
 
@@ -30,7 +31,7 @@ class Gradient:
         pass
 
 
-class GradientConstant(Gradient):
+class ConstantGradient(Gradient):
     def __init__(self, a0):
         super().__init__(a0)
 
@@ -40,12 +41,45 @@ class GradientConstant(Gradient):
 
         return np.array([x_grad, y_grad])
 
+class LinearGradient(Gradient):
+    def __init__(self, a0, xa, wall ):
+        '''
+        a0: Concentration at source
+        
+        xa: x coordinate of the source
+        
+        min_gradient: minimum gradient
+        '''
+        super().__init__(a0)
+        self.xa = xa
+        
+        self.wall = wall 
+    def calculate_gradient(self, x):
+        x_grad = 0
+        y_grad = x[1] * self.initial_grad/ self.wall
+        
+        return np.array([x_grad, y_grad]) / self.initial_grad
+        
+class ExponentialGradient(Gradient):
+    def __init__(self, a0, xa, wall):
+        super().__init__(a0)
+        self.xa = xa
+        self.wall = wall
+    def calculate_gradient(self, x):
+        x_grad = 0
+        A = self.initial_grad
+        B = -np.log(1-A*0.99)/(self.wall)
+        y_grad = A * (1 - np.exp(-x[1]*B))
+        return np.array([x_grad, y_grad]) / self.initial_grad
 
+        
+        
+        
 class AngioSimulation:
 
     def __init__(self, n_reps, Hurst_index, n_steps, dtau, delta,
                  mode='Simulate',
-                 Grad=GradientConstant(0.01),
+                 Grad=ConstantGradient(0.01),
                  only_ht = True,
                  xa = [0, 10],
                  wall=None,  # y coord of wall
@@ -152,6 +186,7 @@ class AngioSimulation:
             xi_1 = x_history[step, :]
             theta = AngioSimulation.theta_ang(xi, xi_1)
             phi = AngioSimulation.phi_ang(xi, xa, theta)
+            
             if phi is None or theta is None:
                 crop_index = step
                 x_history = x_history[:crop_index, :]

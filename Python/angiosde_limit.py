@@ -7,9 +7,12 @@
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm  # Import colormap handling
+import matplotlib.colors as mcolors  # For normalization
 from fbm.sim.davies_harte import DaviesHarteFBmGenerator
 from fbm.sim.cholesky import CholeskyFBmGenerator
 import time
+from matplotlib.collections import LineCollection
 # import scipy.integrate as spi
 import statsmodels.api as sm
 import pandas as pd
@@ -56,7 +59,7 @@ class LinearGradient(Gradient):
         self.wall = wall 
     def calculate_gradient(self, x):
         x_grad = 0
-        y_grad = x[1] * self.initial_grad/ self.wall
+        y_grad = x[1] * self.initial_grad / self.wall
         
         return np.array([x_grad, y_grad]) / self.initial_grad
         
@@ -68,9 +71,9 @@ class ExponentialGradient(Gradient):
     def calculate_gradient(self, x):
         x_grad = 0
         A = self.initial_grad
-        B = -np.log(1-A*0.99)/(self.wall)
-        y_grad = A * (1 - np.exp(-x[1]*B))
-        return np.array([x_grad, y_grad]) / self.initial_grad
+        B = np.log(1-self.initial_grad/A*0.9)/(-self.wall/2)
+        y_grad = A * (1 - np.exp(-x[1]*B))/self.initial_grad
+        return np.array([x_grad, y_grad])
 
         
         
@@ -113,52 +116,7 @@ class AngioSimulation:
         self.step = closer_10_power if closer_10_power > 0 else 1
 
     @staticmethod
-    def sprout_generation(H, n_steps, dtau, delta, Gradient, xa):
-        x_history = np.zeros((n_steps+1, 2))
-        v_history = np.zeros((n_steps+1, 2))
-        # v_resx, v_resy, v_randx, v_randy, v_chemx, v_chemy
-        v_descriptions = np.zeros((n_steps + 1, 6))
-        xi = np.array([0, 0])
-        vi = np.array([0, 0])
-        dW = np.zeros((n_steps, 2))
-        dW[:, 0] = DaviesHarteFBmGenerator().generate_norm_fGn(
-            H, size=n_steps) * dtau ** H
-        dW[:, 1] = DaviesHarteFBmGenerator().generate_norm_fGn(
-            H, size=n_steps) * dtau ** H
-
-        theta = np.pi/2
-        phi = AngioSimulation.phi_ang(xi, xa, theta)
-        for step in range(0, n_steps):
-            v_res = - vi * dtau  # resistance to movement
-            v_rand = dW[step]
-            v_chem = delta * Gradient.calculate_gradient(xi) * \
-                np.sin(np.abs(phi/2)) * dtau
-
-            # print(v_chem)
-            v_descriptions[step + 1, :] = np.array(
-                [v_res[0], v_res[1], v_rand[0], v_rand[1], v_chem[0], v_chem[1]])
-
-            vi = vi + v_res + v_rand + v_chem
-            xi = xi + vi * dtau
-            # crop the growth as it hits the inferior wall at y = 0
-            if xi[1] < 0:
-                xi = np.array([xi[0], 0])
-                # vi = np.array([0, 0])
-            x_history[step + 1, :] = xi
-            v_history[step + 1, :] = vi
-            xi_1 = x_history[step, :]
-            theta = AngioSimulation.theta_ang(xi, xi_1)
-            phi = AngioSimulation.phi_ang(xi, xa, theta)
-            if theta is None or phi is None:
-                crop_index = step
-                x_history = x_history[:crop_index, :]
-                v_history = v_history[:crop_index, :]
-                v_descriptions = v_descriptions[:crop_index, :]
-                return x_history, v_history, v_descriptions
-
-        return x_history, v_history, v_descriptions
-    @staticmethod
-    def hit_generation(H, n_steps, dtau, delta, Gradient, xa, wall,
+    def sprout_generation(H, n_steps, dtau, delta, Gradient, xa, wall,
                        only_ht):
 
         x_history = np.zeros((n_steps + 1, 2))
@@ -183,8 +141,24 @@ class AngioSimulation:
                 [v_res[0], v_res[1], v_rand[0], v_rand[1], v_chem[0], v_chem[1]])
             
             # print(v_chem)
-            vi = vi + v_res + v_rand + v_chem
+            
+            # define
+            # last step
+            xi_1 = np.copy(xi)
+            
             xi = xi + vi * dtau
+            hit_lower_wall = False
+            if xi[1] < 0:
+                xi = np.array([xi[0], 0])
+                # now we have to redifine in the last step to apply to the 
+                # calculations for the next step
+                # we have to 
+                # definition of velocity in the step step-1
+                vi = (xi - xi_1) / dtau 
+            
+            vi = vi + v_res + v_rand + v_chem
+            
+            # TODO: define the wall in y = 0
             x_history[step + 1, :] = xi
             v_history[step + 1, :] = vi
             xi_1 = x_history[step, :]
@@ -203,16 +177,20 @@ class AngioSimulation:
                 x_history = x_history[:crop_index, :]
                 v_history = v_history[:crop_index, :]
                 v_descriptions = v_descriptions[:crop_index, :]
+                # if hit the wall and only ht return the hit time
                 if only_ht:
                     return step*dtau
+                # if hit the wall and not only ht return the history and time hit
                 return x_history, v_history, v_descriptions, step * dtau
-        
+        # if only ht and not hit the call return None
         if only_ht:
             return None
+        # if simulation and not hit the wall return the history with none as hit time
         return x_history, v_history, v_descriptions , None    
 
     @staticmethod
     def theta_ang(xi, xi_1):
+        # TODO: define what happens if xi == xi_1
         num = (xi[1] - xi_1[1])
         den = (xi[0] - xi_1[0])
 
@@ -246,7 +224,7 @@ class AngioSimulation:
                 )
 
             except Warning as e:
-                
+                print(xi, xa, theta)
                 print(num / den, num, den)
                 phi = np.acos(
                     int(num/den)
@@ -257,32 +235,38 @@ class AngioSimulation:
         return phi
 
     def simulate(self, n_jobs = 1):
+        # modes
+        # Simulate: generate sprouts
+        # HitTime: generate hit times
+        # SimulateAndHit: generates both
+        
         if self.mode == 'Simulate':
             # init_time = time.time()
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
-                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa) for _ in range(self.n_reps))
+                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, False) for _ in range(self.n_reps))
 
             for i, result in enumerate(results):
-                self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'] = result
+                self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'], _ = result
+                
                 # delta_time = (time.time() - init_time)
                 # minutes, seconds = divmod(delta_time, 60)
 
             # print(
             #     f"Simulation of {self.n_reps} Sprouts generated. Time: {int(minutes)}:{seconds:.2f}")
 
-        if self.mode == 'HitTime' and self.only_ht == True:
+        if self.mode == 'HitTime':
             results = Parallel(n_jobs = n_jobs, backend='loky', verbose=0)(delayed(AngioSimulation.hit_generation)(
-                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, self.only_ht
+                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, True
             ) for _ in range(self.n_reps))
             
             self.hit_times = results
         
-        if self.mode == 'HitTime' and self.only_ht == False:
+        if self.mode == 'SimulateAndHit':
             
             init_time = time.time()
 
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.hit_generation)(
-                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, self.only_ht) for _ in range(self.n_reps))
+                self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, False) for _ in range(self.n_reps))
             
             for i, result in enumerate(results):
 
@@ -327,13 +311,99 @@ class AngioSimulation:
                         f"Sprout {i+1} of {self.n_reps} Generated. Time: {int(minutes)}:{seconds:.2f}")
 
     def plot_sprouts(self):
-        fig, ax = plt.subplots(figsize=(10, 10), dpi=300)
-
+        fig, ax = plt.subplots(1, 2 ,figsize=(15, 10), dpi=300,
+                               gridspec_kw={'width_ratios': [1, 10]}, sharey=True)
+        
+        # ax[0].set_size_inches(2, 10)
+        # Initialize min/max variables
+        minx, maxx = np.inf, -np.inf
+        miny, maxy = 0, self.wall
+        
+        # Plot each sprout
         for sprout in self.x_storage.values():
+            minx = min(minx, np.min(sprout[:, 0]))
+            maxx = max(maxx, np.max(sprout[:, 0]))
+            ax[1].plot(sprout[:, 0], sprout[:, 1], zorder=3)
+            ax[1].scatter(sprout[-1, 0], sprout[-1, 1])
+        
+        # Create meshgrid for gradient
+        X_coords = np.linspace(minx, maxx, 10)
+        Y_coords = np.linspace(miny, maxy, 10)
+        X, Y = np.meshgrid(X_coords, Y_coords)
+        
+        # Calculate gradient vectors
+        X_grad, Y_grad = np.zeros_like(X), np.zeros_like(Y)
+        for i in range(10):
+            for j in range(10):
+                X_grad[i, j], Y_grad[i, j] = self.Gradient.calculate_gradient([X[i, j], Y[i, j]])
+        
+        # Calculate magnitude and normalize
+        color_mag = np.sqrt(X_grad**2 + Y_grad**2)
+        norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
+        colormap = cm.viridis  # Choose the colormap
+        
+        # Flatten arrays for quiver
+        X_flat, Y_flat = X.ravel(), Y.ravel()
+        U_flat, V_flat = X_grad.ravel(), Y_grad.ravel()
+        color_mag_flat = color_mag.ravel()
+        
+        # Map colors
+        colors = colormap(norm(color_mag_flat))
+        
+        # Plot gradient vectors using quiver
+        ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors, 
+                zorder=1, alpha=0.7)
+        
+        # Add colorbar
+        sm = cm.ScalarMappable(cmap=colormap, norm=norm)  # Create a ScalarMappable
+        sm.set_array([])  # Empty array to link with the colorbar
+        cbar = fig.colorbar(sm, ax=ax, orientation='vertical', shrink=0.7)  # Add colorbar
+        cbar.set_label('Gradient Magnitude [a.u.]')  # Label the colorbar
+    
+        
+        # Set plot limits
+        ax[1].set_xlim([minx-0.1, maxx+0.1])
+        ax[1].set_ylim([miny-0.1, maxy+0.1])
+        ax[1].set_xlabel('X [a.u.]')
+        ax[1].set_ylabel('Y [a.u.]')
+        
+        ax[1].hlines(0, minx, maxx, color='black', linestyle='--', linewidth=3)
+        ax[1].hlines(self.wall, minx, maxx, color='black', linestyle='--', linewidth=3)
 
-            ax.plot(sprout[:, 0], sprout[:, 1])
-            ax.scatter(sprout[-1, 0], sprout[-1, 1])
-        plt.show()
+        
+        # Now we plot the gradient in the first plot
+        
+        # Plot gradient
+        grad_y = np.linspace(0, self.wall, 100)
+        
+        # Calculate the gradient values at each point
+        funct = np.array([self.Gradient.calculate_gradient([0, y]) for y in grad_y])
+        
+        # Extract the x-component (magnitude to be visualized)
+        colors_grad = funct[:, 1]  # Assuming you want to color based on the x-component
+        
+        # Normalize the gradient values for the colormap
+        norm = mcolors.Normalize(vmin=np.min(colors_grad), vmax=np.max(colors_grad))
+        colormap = cm.viridis
+        
+        # Create line segments for color mapping
+        points = np.array([colors_grad, grad_y]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        
+        # Create a LineCollection and set colors based on the magnitude
+        lc = LineCollection(segments, cmap=colormap, norm=norm, linewidth=2)
+        lc.set_array(colors_grad)  # Map colors to the x-component magnitude
+        
+        # Add the LineCollection to the plot
+        ax[0].add_collection(lc)
+        
+        # Adjust plot limits and labels
+        ax[0].set_xlim([np.min(colors_grad) - 0.01, np.max(colors_grad) + 0.1])
+        ax[0].set_ylim([0, self.wall])
+        ax[0].set_xlabel('Gradient Magnitude')
+        ax[0].set_ylabel('Y-coordinate')
+        ax[0].invert_xaxis()  # Invert x-axis if needed
+        plt.show()  # Display the plot
 
     def plot_sprout_description(self):
         fig, ax = plt.subplots(5, 3, figsize=(20, 20))
@@ -600,7 +670,7 @@ if __name__ == "__main__":
     Hurst_index = 0.95
     n_steps = 30_000
     dtau = 1e-3
-    delta = 0.95  # TODO: review the delta effect over the simulation
+    delta = 0.95  # Done: review the delta effect over the simulation
     mode = 'Simulate'
     A_sim = AngioSimulation(n_reps, Hurst_index, n_steps, dtau, delta,
                             xa=[0, 10_000],
@@ -609,7 +679,7 @@ if __name__ == "__main__":
 
     # Note
         # The more hurst index increases the less the delta imports
-        # TODO: Analyze the distributions of the same hurst index at different delta coefficient
+        # Done: Analyze the distributions of the same hurst index at different delta coefficient
     A_sim.simulate(n_jobs=1)
     if mode == 'Simulate':
         A_sim.plot_sprouts()

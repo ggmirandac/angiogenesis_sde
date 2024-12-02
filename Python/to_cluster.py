@@ -1,16 +1,16 @@
 #%% Running
 # from angiosde import AngioSimulation, ConstantGradient, LinearGradient
-from angiosde_limit import AngioSimulation, ConstantGradient, LinearGradient
+from angiosde_limit import AngioSimulation, ConstantGradient, LinearGradient, ExponentialGradient
 from os.path import join 
 import numpy as np
 import matplotlib.pyplot as plt
 # parameters
 
 n_reps = 10
-Hurst_index = 0.5
-n_steps = 100_000
+# Hurst_index = 0.5
+n_steps = 500_000
 dtau = .001
-delta = 1  # TODO: review the delta effect over the simulation
+delta = 1  # Done: review the delta effect over the simulation
 mode = 'Simulate'
 
 # lin_gradient = LinearGradient(0.1, [0, 25], 25)
@@ -24,8 +24,8 @@ for h in list_H:
                         mode="Simulate",
                         wall=25, 
                         only_ht=True, 
-                        Grad=ConstantGradient(0.1))
-    A_sim.simulate(n_jobs=1)
+                        Grad=ExponentialGradient(0.1, [0, 25], 25))
+    A_sim.simulate(n_jobs=10)
 
     A_sim.plot_sprouts()
     # h_str = str(h).replace('.','_')

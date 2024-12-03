@@ -102,10 +102,9 @@ class AngioSimulation:
         self.vd_storage = {}
 
         # storage of hiting_times
-        if self.only_ht == False:
-            self.hit_times = [] 
-        else:
-            self.hit_times = None
+
+        self.hit_times = [] 
+
         self.wall = wall
         if mode == "HitTime":
             if wall is None:
@@ -118,7 +117,6 @@ class AngioSimulation:
     @staticmethod
     def sprout_generation(H, n_steps, dtau, delta, Gradient, xa, wall,
                        only_ht):
-
         x_history = np.zeros((n_steps + 1, 2))
         v_history = np.zeros((n_steps + 1, 2))
         v_descriptions = np.zeros((n_steps + 1, 6))
@@ -157,15 +155,15 @@ class AngioSimulation:
                 vi = (xi - xi_1) / dtau 
             
             vi = vi + v_res + v_rand + v_chem
-            
-            # TODO: define the wall in y = 0
             x_history[step + 1, :] = xi
             v_history[step + 1, :] = vi
             xi_1 = x_history[step, :]
             theta = AngioSimulation.theta_ang(xi, xi_1)
+            xa = np.array([xi[0], wall])
             phi = AngioSimulation.phi_ang(xi, xa, theta)
             
             if phi is None or theta is None:
+
                 crop_index = step
                 x_history = x_history[:crop_index, :]
                 v_history = v_history[:crop_index, :]
@@ -173,7 +171,7 @@ class AngioSimulation:
                 return x_history, v_history, v_descriptions, step * dtau
 
             if xi[1] >= wall:
-                crop_index = step
+                crop_index = step+1
                 x_history = x_history[:crop_index, :]
                 v_history = v_history[:crop_index, :]
                 v_descriptions = v_descriptions[:crop_index, :]
@@ -183,56 +181,29 @@ class AngioSimulation:
                 # if hit the wall and not only ht return the history and time hit
                 return x_history, v_history, v_descriptions, step * dtau
         # if only ht and not hit the call return None
+
         if only_ht:
-            return None
-        # if simulation and not hit the wall return the history with none as hit time
-        return x_history, v_history, v_descriptions , None    
+            return step * dtau
+        else:
+            return x_history, v_history, v_descriptions , None    
 
     @staticmethod
     def theta_ang(xi, xi_1):
-        # TODO: define what happens if xi == xi_1
-        num = (xi[1] - xi_1[1])
-        den = (xi[0] - xi_1[0])
 
+        x_trans = xi[0] - xi_1[0]
+        y_trans = xi[1] - xi_1[1]
+        theta = np.arctan2(y_trans, x_trans)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings('error')
-            try:
-                theta = np.arctan2(
-                    num, den
-                )
-
-                if theta < 0:
-                    theta += 2 * np.pi
-            except Warning as e:
-                
-                return None
         return theta
 
     @staticmethod
     def phi_ang(xi, xa, theta):
 
-        num = ((xa[0] - xi[0]) * np.cos(theta) +
-               (xa[1] - xi[0]) * np.sin(theta))
-        den = ((xa[0] - xi[0]) ** 2 + (xa[1] - xi[1]) ** 2) ** 1/2
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings('error')
-            try:
-                phi = np.acos(
-                    np.round(num/den, decimals=10)
-                )
-
-            except Warning as e:
-                print(xi, xa, theta)
-                print(num / den, num, den)
-                phi = np.acos(
-                    int(num/den)
-                )
-                print(phi)
-                return None
-            
-        return phi
+        num =((xa[0] - xi[0]) * np.cos(theta)) + ((xa[1] - xi[1]) * np.sin(theta))
+        den = np.sqrt((xa[0] - xi[0]) ** 2 + (xa[1] - xi[1]) ** 2)
+    
+    
+        return np.arccos(num/den)
 
     def simulate(self, n_jobs = 1):
         # modes
@@ -255,17 +226,16 @@ class AngioSimulation:
             #     f"Simulation of {self.n_reps} Sprouts generated. Time: {int(minutes)}:{seconds:.2f}")
 
         if self.mode == 'HitTime':
-            results = Parallel(n_jobs = n_jobs, backend='loky', verbose=0)(delayed(AngioSimulation.hit_generation)(
+            results = Parallel(n_jobs = n_jobs, backend='loky', verbose=1)(delayed(AngioSimulation.sprout_generation)(
                 self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, True
             ) for _ in range(self.n_reps))
             
             self.hit_times = results
         
         if self.mode == 'SimulateAndHit':
-            
-            init_time = time.time()
 
-            results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.hit_generation)(
+
+            results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
                 self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, False) for _ in range(self.n_reps))
             
             for i, result in enumerate(results):
@@ -274,41 +244,6 @@ class AngioSimulation:
 
                 self.hit_times.append(ht)
 
-                delta_time = (time.time() - init_time)
-                minutes, seconds = divmod(delta_time, 60)
-                # if i % self.step == 0:
-                    # print(
-                    #     f"Sprout {i+1} of {self.n_reps} Generated. Time: {int(minutes)}:{seconds:.2f}")
-
-    def debbug(self):
-        if self.mode == 'Simulation':
-            init_time = time.time()
-            for i in range(self.n_reps):
-                result = AngioSimulation.sprout_generation(
-                    self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa)
-                self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'] = result
-                delta_time = (time.time() - init_time)
-                minutes, seconds = divmod(delta_time, 60)
-
-            print(
-                f"Simulation of {self.n_reps} Sprouts generated. Time: {int(minutes)}:{seconds:.2f}")
-
-        if self.mode == 'HitTime':
-            init_time = time.time()
-
-            for i in range(self.n_reps):
-                result = AngioSimulation.hit_generation(
-                    self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa,
-                    self.wall
-                )
-
-                self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'], ht = result
-                self.hit_times.append(ht)
-                delta_time = (time.time() - init_time)
-                minutes, seconds = divmod(delta_time, 60)
-                if i % self.step == 0:
-                    print(
-                        f"Sprout {i+1} of {self.n_reps} Generated. Time: {int(minutes)}:{seconds:.2f}")
 
     def plot_sprouts(self):
         fig, ax = plt.subplots(1, 2 ,figsize=(15, 10), dpi=300,
@@ -319,7 +254,7 @@ class AngioSimulation:
         minx, maxx = np.inf, -np.inf
         miny, maxy = 0, self.wall
         
-        # Plot each sprout
+        ########### Plot each sprout ###########
         for sprout in self.x_storage.values():
             minx = min(minx, np.min(sprout[:, 0]))
             maxx = max(maxx, np.max(sprout[:, 0]))
@@ -338,8 +273,13 @@ class AngioSimulation:
                 X_grad[i, j], Y_grad[i, j] = self.Gradient.calculate_gradient([X[i, j], Y[i, j]])
         
         # Calculate magnitude and normalize
-        color_mag = np.sqrt(X_grad**2 + Y_grad**2)
-        norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
+        
+        if self.Gradient.__class__.__name__ == 'ConstantGradient':
+            color_mag = np.ones_like(X_grad)
+            norm = mcolors.Normalize(vmin=0, vmax=1)
+        else:
+            color_mag = np.sqrt(X_grad**2 + Y_grad**2)
+            norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
         colormap = cm.viridis  # Choose the colormap
         
         # Flatten arrays for quiver
@@ -373,7 +313,8 @@ class AngioSimulation:
         
         # Now we plot the gradient in the first plot
         
-        # Plot gradient
+        ############ Plot gradient ###########
+        
         grad_y = np.linspace(0, self.wall, 100)
         
         # Calculate the gradient values at each point
@@ -383,7 +324,7 @@ class AngioSimulation:
         colors_grad = funct[:, 1]  # Assuming you want to color based on the x-component
         
         # Normalize the gradient values for the colormap
-        norm = mcolors.Normalize(vmin=np.min(colors_grad), vmax=np.max(colors_grad))
+        norm = mcolors.Normalize(vmin=0, vmax=1)
         colormap = cm.viridis
         
         # Create line segments for color mapping
@@ -398,8 +339,14 @@ class AngioSimulation:
         ax[0].add_collection(lc)
         
         # Adjust plot limits and labels
-        ax[0].set_xlim([np.min(colors_grad) - 0.01, np.max(colors_grad) + 0.1])
-        ax[0].set_ylim([0, self.wall])
+        # if consttant make it as so
+        if self.Gradient.__class__.__name__ != 'ConstantGradient':
+            
+            ax[0].set_xlim([np.min(colors_grad) - 0.01, np.max(colors_grad) + 0.1])
+            ax[0].set_ylim([0, self.wall])
+        else:
+            ax[0].set_xlim([0.9, 1.1])
+            ax[0].set_ylim([0, self.wall])
         ax[0].set_xlabel('Gradient Magnitude')
         ax[0].set_ylabel('Y-coordinate')
         ax[0].invert_xaxis()  # Invert x-axis if needed
@@ -651,11 +598,9 @@ class AngioSimulation:
 
         plt.show()
 
-    def save_data(self, file_name):
+    def save_hittimes(self, file_name):
         hitting_times = self.hit_times
-        sprouts = self.x_storage
-        velocities = self.v_storage
-        velocities_description = self.vd_storage
+
          
         # create pandas dataframe from the data
         hit_pd = pd.DataFrame(hitting_times, columns=['Hitting Time'])
@@ -663,7 +608,7 @@ class AngioSimulation:
         # velocities_pd = pd.DataFrame(velocities, columns=['Velocities_x', 'Velocities_y'])
         hit_pd.to_csv(f'{file_name}.csv', index=False)
         
-
+\
 # %% Main body
 if __name__ == "__main__":
     n_reps = 10

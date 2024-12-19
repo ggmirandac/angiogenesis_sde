@@ -20,26 +20,34 @@ exponential_gradient = ExponentialGradient(0.1, [0, 25], 25)
 list_H =  [0.5, 0.55, 0.60, 0.65, 0.7, 0.75]
 gradients = [linear_gradient, constant_gradient, exponential_gradient]
 # for h in list_H:
+# TODO: Recoletar basura
 for Grad in gradients:
-    if gradients.__class__.__name__ == 'LinearGradient':
-    # for h in list_H:
-    #     A_sim = AngioSimulation(n_reps, h, n_steps, dtau, delta,
-    #                         xa=[0, 25],
-    #                         mode="HitTime",
-    #                         wall=25, 
-    #                         only_ht=True, 
-    #                         Grad=Grad)
-    #     A_sim.simulate(n_jobs=10)
+    print(Grad.__class__.__name__)
+    if Grad.__class__.__name__ == 'LinearGradient':
+        name = 'linear'
+    elif Grad.__class__.__name__ == 'ConstantGradient':
+        name = 'constant'
+    else:
+        name = 'exponential'
 
-    #     # A_sim.plot_sprouts()
-    #     h_str = str(h).replace('.','_')
-    #     file_name = join('personal_comp', f'exp_hit_time_{h_str}')
-    #     A_sim.save_hittimes(file_name)
-    #     print(f'Hit time for Hurst index {h} saved')
-    #     # file_name = 'hit_time_' + str(h) 
-    #     # A_sim.save_data(file_name)
+    for h in list_H:
+        A_sim = AngioSimulation(n_reps, h, n_steps, dtau, delta,
+                            xa=[0, 25],
+                            mode="HitTime",
+                            wall=25, 
+                            only_ht=True, 
+                            Grad=Grad)
+        A_sim.simulate(n_jobs=10)
 
-  #%%
+        # A_sim.plot_sprouts()
+        h_str = str(h).replace('.','_')
+        file_name = join('personal_comp', f'{name}_hit_time_{h_str}')
+        A_sim.save_hittimes(file_name)
+        print(f'Hit time for Hurst index {h} saved')
+        # file_name = 'hit_time_' + str(h) 
+        # A_sim.save_data(file_name)
+
+      #%%
 
 # mesh_grid = np.meshgrid(np.linspace(-10, 10, 5), np.linspace(-10, 10, 5), indexing='ij')
 # X, Y = mesh_grid

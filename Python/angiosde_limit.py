@@ -124,6 +124,8 @@ class AngioSimulation:
         xi = np.array([0, 0])
         vi = np.array([0, 0])
         dW = np.zeros((n_steps, 2))
+        # by the definition in the documentation if T = 0 and size = size, the interval of time is 
+        # defined as 1, therefore is consistent with the definition of multiplying by dtau ** H
         dW[:, 0] = DaviesHarteFBmGenerator().generate_fGn(
             H, size=n_steps) * dtau ** H
         dW[:, 1] = DaviesHarteFBmGenerator().generate_fGn(
@@ -245,7 +247,7 @@ class AngioSimulation:
                 self.hit_times.append(ht)
 
 
-    def plot_sprouts(self):
+    def plot_sprouts(self, title):
         fig, ax = plt.subplots(1, 2 ,figsize=(15, 10), dpi=300,
                                gridspec_kw={'width_ratios': [1, 10]}, sharey=True)
         
@@ -350,6 +352,7 @@ class AngioSimulation:
         ax[0].set_xlabel('Gradient Magnitude')
         ax[0].set_ylabel('Y-coordinate')
         ax[0].invert_xaxis()  # Invert x-axis if needed
+        ax[1].set_title(title, fontsize=20)  
         plt.show()  # Display the plot
 
     def plot_sprout_description(self):

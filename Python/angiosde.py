@@ -254,7 +254,7 @@ class AngioSimulation:
     def simulate(self, n_jobs = 1):
         if self.mode == 'Simulate':
             # init_time = time.time()
-            results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
+            results = Parallel(n_jobs=n_jobs,  backend='loky', verbose=0)(delayed(AngioSimulation.sprout_generation)(
                 self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa) for _ in range(self.n_reps))
 
             for i, result in enumerate(results):

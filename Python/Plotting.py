@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # parameters
 
-n_reps = 10
+n_reps = 5
 # Hurst_index = 0.5
 n_steps = 500_000
 dtau = .001
@@ -17,7 +17,7 @@ linear_gradient = LinearGradient(0.1, [0, wall], wall)
 constant_gradient = ConstantGradient(0.1)
 exponential_gradient = ExponentialGradient(0.1, [0, wall], wall)
 
-list_H =  [0.35,0.5, 0.6, 0.7]
+list_H =  [0.85]
 # for h in list_H:
 # TODO: Recoletar basura
 
@@ -27,8 +27,8 @@ for h in list_H:
                         mode="Simulate",
                         wall=wall, 
                         only_ht=True, 
-                        Grad=exponential_gradient)
+                        Grad=constant_gradient)
     A_sim.simulate(n_jobs=10)
-    A_sim.plot_sprouts('Constant Gradient Hurst index ' + str(h))
+    A_sim.plot_sprouts('Sprout path H =' + str(h)+' Constant Gradient')
     # A_sim.save_data(file_na
 # %%

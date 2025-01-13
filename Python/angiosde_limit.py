@@ -185,7 +185,7 @@ class AngioSimulation:
         # if only ht and not hit the call return None
 
         if only_ht:
-            return step * dtau
+            return None
         else:
             return x_history, v_history, v_descriptions , None    
 
@@ -248,8 +248,8 @@ class AngioSimulation:
 
 
     def plot_sprouts(self, title):
-        fig, ax = plt.subplots(1, 2 ,figsize=(15, 10), dpi=300,
-                               gridspec_kw={'width_ratios': [1, 10]}, sharey=True)
+        fig, ax = plt.subplots(1, 2 ,figsize=(15, 10), dpi=600,
+                               gridspec_kw={'width_ratios': [1, 5], 'wspace': 0.1}, sharey=True)
         
         # ax[0].set_size_inches(2, 10)
         # Initialize min/max variables
@@ -260,7 +260,7 @@ class AngioSimulation:
         for sprout in self.x_storage.values():
             minx = min(minx, np.min(sprout[:, 0]))
             maxx = max(maxx, np.max(sprout[:, 0]))
-            ax[1].plot(sprout[:, 0], sprout[:, 1], zorder=3)
+            ax[1].plot(sprout[:, 0], sprout[:, 1], zorder=3, linewidth=2)
             ax[1].scatter(sprout[-1, 0], sprout[-1, 1])
         
         # Create meshgrid for gradient
@@ -282,7 +282,7 @@ class AngioSimulation:
         else:
             color_mag = np.sqrt(X_grad**2 + Y_grad**2)
             norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
-        colormap = cm.viridis  # Choose the colormap
+        colormap = cm.plasma  # Choose the colormap
         
         # Flatten arrays for quiver
         X_flat, Y_flat = X.ravel(), Y.ravel()
@@ -299,20 +299,24 @@ class AngioSimulation:
         # Add colorbar
         sm = cm.ScalarMappable(cmap=colormap, norm=norm)  # Create a ScalarMappable
         sm.set_array([])  # Empty array to link with the colorbar
-        cbar = fig.colorbar(sm, ax=ax, orientation='vertical', shrink=0.7)  # Add colorbar
-        cbar.set_label('Gradient Magnitude [a.u.]')  # Label the colorbar
-    
-        
+        cbar = fig.colorbar(sm, ax=ax, orientation='vertical')  # Add colorbar
+        cbar.set_label('Gradient Magnitude [a.u.]', fontsize = 18)  # Label the colorbar
+        # cbar.set_ticks(cbar.get_ticks())
+        cbar.set_ticklabels(np.round(cbar.get_ticks(),1), fontsize = 15)  # Update the tick labels
         # Set plot limits
-        ax[1].set_xlim([minx-0.1, maxx+0.1])
-        ax[1].set_ylim([miny-0.1, maxy+0.1])
-        ax[1].set_xlabel('X [a.u.]')
-        ax[1].set_ylabel('Y [a.u.]')
+        ax[1].set_xlabel('X [a.u.]', fontsize=18)
+        # ax[1].set_ylabel('Y [a.u.]', fontsize=15)
         
         ax[1].hlines(0, minx, maxx, color='black', linestyle='--', linewidth=3)
         ax[1].hlines(self.wall, minx, maxx, color='black', linestyle='--', linewidth=3)
-
+        ax[1].set_yticks([np.round(x, 1) for x in np.linspace(0, self.wall, 5)])
+        xticks = ax[1].get_xticks()
+        ax[1].set_xticks(xticks)
+        ax[1].set_xticklabels(ax[1].get_xticks(), fontsize=15)
         
+        ax[1].set_xlim([minx-0.1, maxx+0.1])
+        ax[1].set_ylim([miny-0.1, maxy+0.1])
+        ax[1].set_title(title, fontsize=19)  
         # Now we plot the gradient in the first plot
         
         ############ Plot gradient ###########
@@ -327,7 +331,7 @@ class AngioSimulation:
         
         # Normalize the gradient values for the colormap
         norm = mcolors.Normalize(vmin=0, vmax=1)
-        colormap = cm.viridis
+        
         
         # Create line segments for color mapping
         points = np.array([colors_grad, grad_y]).T.reshape(-1, 1, 2)
@@ -345,15 +349,22 @@ class AngioSimulation:
         if self.Gradient.__class__.__name__ != 'ConstantGradient':
             
             ax[0].set_xlim([np.min(colors_grad) - 0.01, np.max(colors_grad) + 0.1])
+            ax[0].set_xticks([0, 0.5, 1])
+            ax[0].set_xticklabels([0, 0.5, 1], fontsize=15)
             ax[0].set_ylim([0, self.wall])
         else:
             ax[0].set_xlim([0.9, 1.1])
+            ax[0].set_xticks([0.9, 1, 1.1])
+            ax[0].set_xticklabels([0.9, 1, 1.1], fontsize=15)
+
             ax[0].set_ylim([0, self.wall])
-        ax[0].set_xlabel('Gradient Magnitude')
-        ax[0].set_ylabel('Y-coordinate')
+        ax[0].set_xlabel('Magnitude [a.u.]', fontsize = 18)
+        ax[0].set_ylabel('Y [a.u.]', fontsize = 18)
         ax[0].invert_xaxis()  # Invert x-axis if needed
-        ax[1].set_title(title, fontsize=20)  
+        ax[0].set_title('Gradient', fontsize = 19)
+        ax[0].set_yticklabels(ax[0].get_yticks(), fontsize=15)
         plt.show()  # Display the plot
+
 
     def plot_sprout_description(self):
         fig, ax = plt.subplots(5, 3, figsize=(20, 20))

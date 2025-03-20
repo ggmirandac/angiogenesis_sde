@@ -81,6 +81,56 @@ def js_distance_dict(dict_exp, experiment, h1_compare):
         # dict_out[h2] = distance.jensenshannon(get_h1, get_h2)
     return dict_out
 
+def kl_distance_dict(dict_exp, experiment, h1_compare):
+    '''
+    Generates the KL distance for the wall and the h1_compare
+    and the rest of the values in the dictionary
+    The dict_exp is a dictionary with the following structure:
+    dict_exp[wall][h] = data 
+        where h is the hurst value and data is the data
+        and wall is the wall value
+    The output is a dictionary with the following structure:
+    dict_out[h2] = kl_distance
+        where h2 is the hurst value and kl_distance is the KL distance of the test
+    
+    Parameters:
+    dict_exp: dict
+        dictionary with the data as descripted before
+    wall: int
+        wall value to compare
+    h1_compare: float
+        hurst value to compare
+    '''
+    dict_work = dict_exp[experiment].copy()
+    get_h1 = dict_work[h1_compare]
+    
+    # clean h1 nan values
+    get_h1 = get_h1[~np.isnan(get_h1)]
+    n_samples = 0.1 * len(get_h1)
+    
+    # kde_h1 = stats.gaussian_kde(get_h1.iloc[:,0])
+    dict_out = {}
+    for h2 in dict_work.keys():
+        if h2 == h1_compare:
+            continue
+        # clean h2 nan values
+        get_h2 = dict_work[h2]
+        get_h2 = get_h2[~np.isnan(get_h2)]
+        
+        bin_h2 = np.histogram(get_h2, bins = 200, density = True)
+        bin_h1 = np.histogram(get_h1, bins = bin_h2[1], density = True)
+        kl_for_all = []
+        for i in range(len(bin_h1[0])):
+            try:
+                kl = special.kl_div(bin_h1[0][i], bin_h2[0][i])
+            except:
+                kl = 0
+
+            kl_for_all.append(kl)
+        dict_out[h2] = np.sum(kl_for_all)
+    return dict_out
+
+
 def mann_witney_u_dict(dict_exp, experiment, h1_compare):
     '''
     Generates the Mann-Witney U test for the wall and the h1_compare
@@ -218,6 +268,20 @@ def bt_median_ttest_pval(h1, h2, n_samples, n_cpu, n_boostrap):
     median_h1 = Parallel(n_jobs = n_cpu, backend='threading')(delayed(boostrap_median)(h1.values.flatten(), n_samples) for _ in range(n_boostrap))
     median_h2 = Parallel(n_jobs = n_cpu, backend='threading')(delayed(boostrap_median)(h2.values.flatten(), n_samples) for _ in range(n_boostrap))
     
+    # bias correction
+    
+    bias_h1 = np.mean(median_h1) - np.median(h1.values.flatten())
+    bias_h2 = np.mean(median_h2) - np.median(h2.values.flatten())
+    
+    percentage_h1 = np.abs(bias_h1) / np.median(h1.values.flatten())
+    percentage_h2 = np.abs(bias_h2) / np.median(h2.values.flatten())
+    
+    if percentage_h1 > 0.25:
+        print(f'Warning: H1 bias is {percentage_h1:.2f}')
+    if percentage_h2 > 0.25:
+        print(f'Warning: H2 bias is {percentage_h2:.2f}')
+    
+    
     return stats.ttest_ind(median_h1, median_h2, equal_var = False, nan_policy = 'omit', alternative='two-sided').pvalue
     
     
@@ -307,6 +371,31 @@ def plot_ks_pval(dict_exp, h1_compare, log = False, signif = 0.05):
     # ax.set_ylim([1e-5, 1])
     plt.show()
     
+def plot_kl_distance(dict_exp, h1_compare, log = False, signif = 0.05):
+    fig, ax = plt.subplots(figsize = (15,5), dpi = 600)
+    len_h = len(dict_exp[list(dict_exp.keys())[0]].values())
+    color_map = plt.get_cmap('coolwarm', len_h)
+    for key in tqdm(dict_exp.keys()):
+        dict_kl = kl_distance_dict(dict_exp, key, h1_compare)
+        # plot in the x axis the wall values and in the y axis the hellinger distance
+        # asign a color to each h value:
+        # order the dict_hellinger by the keys
+        dict_kl = dict(sorted(dict_kl.items()))   
+        for i, h in enumerate(dict_kl.keys()):
+            ax.scatter(key, dict_kl[h], color = color_map(i) )
+    ax.legend(handles = [plt.Line2D([0], [0], marker='o', color='w', label=f'Hurst = {h}',
+                                    markerfacecolor=color_map(i), markersize=10) for i, h in enumerate(dict_kl.keys())],
+                                    title = 'Hurst', title_fontsize = 'small', fontsize = 'small',
+                                    bbox_to_anchor=(1.05, 1), loc='upper left')
+            #   ,bbox_to_anchor=(1.05, 1), loc='upper left')
+    x_lims = ax.get_xlim()
+    ax.hlines(signif, x_lims[0], x_lims[1], color = 'red', linestyle = '--')
+    ax.set_title(f'KL distance between Hurst = {h1_compare} and the others')
+    ax.set_xlabel('Wall distance [a.u.]')
+    ax.set_ylabel('KL distance')
+    if log == True:
+        ax.set_yscale('log')
+    plt.show()
     
 def plot_mwu_pval(dict_exp, h1_compare, log = False, signif = 0.05):    
     fig, ax = plt.subplots(figsize = (15,5), dpi = 600)
@@ -363,6 +452,7 @@ def plot_js_distance(dict_exp, h1_compare, log = False, signif = 0.05):
     if log == True:
         ax.set_yscale('log')
     plt.show()
+    
     
 
      
@@ -444,7 +534,7 @@ def wall_plot(dict_exp, experiment ,xlims = [0,100],
     # order the dictionary
     dict_to_plot = dict(sorted(dict_to_plot.items()))
     len_space = int(0.1*len(dict_to_plot[list(dict_to_plot.keys())[0]]))
-    fig, ax = plt.subplots(figsize = (15,5), dpi = 600)
+    fig, ax = plt.subplots(figsize = (10,5), dpi = 600)
     color_map = plt.get_cmap('coolwarm', len(dict_to_plot.keys()))
     # print(len(dict_to_plot.keys()))
     color = 0
@@ -474,7 +564,8 @@ def wall_plot(dict_exp, experiment ,xlims = [0,100],
     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax.set_title(f'Wall : {experiment}')
     ax.set_xlim([0, max_plot])
-    plt.show()
+    # plt.show()
+    return fig, ax
     
 #%%
 if __name__ == '__main__':

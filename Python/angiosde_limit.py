@@ -164,14 +164,7 @@ class AngioSimulation:
             xa = np.array([xi[0], wall])
             phi = AngioSimulation.phi_ang(xi, xa, theta)
             
-            if phi is None or theta is None:
-
-                crop_index = step
-                x_history = x_history[:crop_index, :]
-                v_history = v_history[:crop_index, :]
-                v_descriptions = v_descriptions[:crop_index, :]
-                return x_history, v_history, v_descriptions, step * dtau
-
+           
             if xi[1] >= wall:
                 crop_index = step+1
                 x_history = x_history[:crop_index, :]
@@ -247,124 +240,196 @@ class AngioSimulation:
                 self.hit_times.append(ht)
 
 
-    def plot_sprouts(self, title):
-        fig, ax = plt.subplots(1, 2 ,figsize=(15, 10), dpi=600,
-                               gridspec_kw={'width_ratios': [1, 5], 'wspace': 0.1}, sharey=True)
-        
-        # ax[0].set_size_inches(2, 10)
-        # Initialize min/max variables
-        minx, maxx = np.inf, -np.inf
-        miny, maxy = 0, self.wall
-        
-        ########### Plot each sprout ###########
-        for sprout in self.x_storage.values():
-            minx = min(minx, np.min(sprout[:, 0]))
-            maxx = max(maxx, np.max(sprout[:, 0]))
-            ax[1].plot(sprout[:, 0], sprout[:, 1], zorder=3, linewidth=2)
-            ax[1].scatter(sprout[-1, 0], sprout[-1, 1])
-        
-        # Create meshgrid for gradient
-        X_coords = np.linspace(minx, maxx, 10)
-        Y_coords = np.linspace(miny, maxy, 10)
-        X, Y = np.meshgrid(X_coords, Y_coords)
-        
-        # Calculate gradient vectors
-        X_grad, Y_grad = np.zeros_like(X), np.zeros_like(Y)
-        for i in range(10):
-            for j in range(10):
-                X_grad[i, j], Y_grad[i, j] = self.Gradient.calculate_gradient([X[i, j], Y[i, j]])
-        
-        # Calculate magnitude and normalize
-        
+    def plot_sprouts(self, title, show = True):
         if self.Gradient.__class__.__name__ == 'ConstantGradient':
-            color_mag = np.ones_like(X_grad)
-            norm = mcolors.Normalize(vmin=0, vmax=1)
-        else:
-            color_mag = np.sqrt(X_grad**2 + Y_grad**2)
-            norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
-        colormap = cm.plasma  # Choose the colormap
-        
-        # Flatten arrays for quiver
-        X_flat, Y_flat = X.ravel(), Y.ravel()
-        U_flat, V_flat = X_grad.ravel(), Y_grad.ravel()
-        color_mag_flat = color_mag.ravel()
-        
-        # Map colors
-        colors = colormap(norm(color_mag_flat))
-        
-        # Plot gradient vectors using quiver
-        ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors, 
-                zorder=1, alpha=0.7)
-        
-        # Add colorbar
-        sm = cm.ScalarMappable(cmap=colormap, norm=norm)  # Create a ScalarMappable
-        sm.set_array([])  # Empty array to link with the colorbar
-        cbar = fig.colorbar(sm, ax=ax, orientation='vertical')  # Add colorbar
-        cbar.set_label('Gradient Magnitude [a.u.]', fontsize = 18)  # Label the colorbar
-        # cbar.set_ticks(cbar.get_ticks())
-        cbar.set_ticklabels(np.round(cbar.get_ticks(),1), fontsize = 15)  # Update the tick labels
-        # Set plot limits
-        ax[1].set_xlabel('X [a.u.]', fontsize=18)
-        # ax[1].set_ylabel('Y [a.u.]', fontsize=15)
-        
-        ax[1].hlines(0, minx, maxx, color='black', linestyle='--', linewidth=3)
-        ax[1].hlines(self.wall, minx, maxx, color='black', linestyle='--', linewidth=3)
-        ax[1].set_yticks([np.round(x, 1) for x in np.linspace(0, self.wall, 5)])
-        xticks = ax[1].get_xticks()
-        ax[1].set_xticks(xticks)
-        ax[1].set_xticklabels(ax[1].get_xticks(), fontsize=15)
-        
-        ax[1].set_xlim([minx-0.1, maxx+0.1])
-        ax[1].set_ylim([miny-0.1, maxy+0.1])
-        ax[1].set_title(title, fontsize=19)  
-        # Now we plot the gradient in the first plot
-        
-        ############ Plot gradient ###########
-        
-        grad_y = np.linspace(0, self.wall, 100)
-        
-        # Calculate the gradient values at each point
-        funct = np.array([self.Gradient.calculate_gradient([0, y]) for y in grad_y])
-        
-        # Extract the x-component (magnitude to be visualized)
-        colors_grad = funct[:, 1]  # Assuming you want to color based on the x-component
-        
-        # Normalize the gradient values for the colormap
-        norm = mcolors.Normalize(vmin=0, vmax=1)
-        
-        
-        # Create line segments for color mapping
-        points = np.array([colors_grad, grad_y]).T.reshape(-1, 1, 2)
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        
-        # Create a LineCollection and set colors based on the magnitude
-        lc = LineCollection(segments, cmap=colormap, norm=norm, linewidth=2)
-        lc.set_array(colors_grad)  # Map colors to the x-component magnitude
-        
-        # Add the LineCollection to the plot
-        ax[0].add_collection(lc)
-        
-        # Adjust plot limits and labels
-        # if consttant make it as so
-        if self.Gradient.__class__.__name__ != 'ConstantGradient':
             
+            fig, ax = plt.subplots(figsize=(8,8), dpi=600)
+            
+            # ax[0].set_size_inches(2, 10)
+            # Initialize min/max variables
+            minx, maxx = np.inf, -np.inf
+            miny, maxy = 0, self.wall
+            
+            ########### Plot each sprout ###########
+            for sprout in self.x_storage.values():
+                minx = min(minx, np.min(sprout[:, 0]))
+                maxx = max(maxx, np.max(sprout[:, 0]))
+                ax.plot(sprout[:, 0], sprout[:, 1], zorder=3, linewidth=2)
+                ax.scatter(sprout[-1, 0], sprout[-1, 1])
+            
+            # # Create meshgrid for gradient
+            # X_coords = np.linspace(minx, maxx, 10)
+            # Y_coords = np.linspace(miny, maxy, 10)
+            # X, Y = np.meshgrid(X_coords, Y_coords)
+            
+            # # Calculate gradient vectors
+            # X_grad, Y_grad = np.zeros_like(X), np.zeros_like(Y)
+            # for i in range(10):
+            #     for j in range(10):
+            #         X_grad[i, j], Y_grad[i, j] = self.Gradient.calculate_gradient([X[i, j], Y[i, j]])
+            
+            # # Calculate magnitude and normalize
+            
+            # if self.Gradient.__class__.__name__ == 'ConstantGradient':
+            #     color_mag = np.ones_like(X_grad)
+            #     norm = mcolors.Normalize(vmin=0, vmax=1)
+            # else:
+            #     color_mag = np.sqrt(X_grad**2 + Y_grad**2)
+            #     norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
+            # colormap = cm.plasma  # Choose the colormap
+            
+            # # Flatten arrays for quiver
+            # X_flat, Y_flat = X.ravel(), Y.ravel()
+            # U_flat, V_flat = X_grad.ravel(), Y_grad.ravel()
+            # color_mag_flat = color_mag.ravel()
+            
+            # # Map colors
+            # colors = colormap(norm(color_mag_flat))
+            
+            # # Plot gradient vectors using quiver
+            # ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors, 
+            #         zorder=1, alpha=0.7)
+            
+            # # Add colorbar
+            # sm = cm.ScalarMappable(cmap=colormap, norm=norm)  # Create a ScalarMappable
+            # sm.set_array([])  # Empty array to link with the colorbar
+            # cbar = fig.colorbar(sm, ax=ax, orientation='vertical')  # Add colorbar
+            # cbar.set_label('Gradient Magnitude [a.u.]', fontsize = 18)  # Label the colorbar
+            # # cbar.set_ticks(cbar.get_ticks())
+            # cbar.set_ticklabels(np.round(cbar.get_ticks(),1), fontsize = 15)  # Update the tick labels
+        
+            # Set plot limits
+            ax.set_xlabel('X [a.u.]', fontsize=15)
+            # ax[1].set_ylabel('Y [a.u.]', fontsize=15)
+            
+            ax.hlines(0, minx, maxx, color='black', linestyle='--', linewidth=3)
+            ax.hlines(self.wall, minx, maxx, color='black', linestyle='--', linewidth=3)
+            ax.set_yticks([np.round(x, 1) for x in np.linspace(0, self.wall, 5)])
+            ax.set_yticklabels(ax.get_yticks(), fontsize=12)
+            xticks = ax.get_xticks()
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(ax.get_xticks(), fontsize=12)
+            
+            ax.set_xlim([minx-0.1, maxx+0.1])
+            ax.set_ylim([miny-0.1, maxy+0.1])
+            ax.set_title(title, fontsize=15)  
+            # Now we plot the gradient in the first plot
+            
+            
+        else: 
+            fig, ax = plt.subplots(1, 2 ,figsize=(9,8), dpi=600,
+                                gridspec_kw={'width_ratios': [1, 5], 'wspace': 0.2}, sharey=True)
+            
+            # ax[0].set_size_inches(2, 10)
+            # Initialize min/max variables
+            minx, maxx = np.inf, -np.inf
+            miny, maxy = 0, self.wall
+            
+            ########### Plot each sprout ###########
+            for sprout in self.x_storage.values():
+                minx = min(minx, np.min(sprout[:, 0]))
+                maxx = max(maxx, np.max(sprout[:, 0]))
+                ax[1].plot(sprout[:, 0], sprout[:, 1], zorder=3, linewidth=2)
+                ax[1].scatter(sprout[-1, 0], sprout[-1, 1])
+            
+            # # Create meshgrid for gradient
+            # X_coords = np.linspace(minx, maxx, 10)
+            # Y_coords = np.linspace(miny, maxy, 10)
+            # X, Y = np.meshgrid(X_coords, Y_coords)
+            
+            # # Calculate gradient vectors
+            # X_grad, Y_grad = np.zeros_like(X), np.zeros_like(Y)
+            # for i in range(10):
+            #     for j in range(10):
+            #         X_grad[i, j], Y_grad[i, j] = self.Gradient.calculate_gradient([X[i, j], Y[i, j]])
+            
+            # # Calculate magnitude and normalize
+            
+            # if self.Gradient.__class__.__name__ == 'ConstantGradient':
+            #     color_mag = np.ones_like(X_grad)
+            #     norm = mcolors.Normalize(vmin=0, vmax=1)
+            # else:
+            #     color_mag = np.sqrt(X_grad**2 + Y_grad**2)
+            #     norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
+            # colormap = cm.plasma  # Choose the colormap
+            
+            # # Flatten arrays for quiver
+            # X_flat, Y_flat = X.ravel(), Y.ravel()
+            # U_flat, V_flat = X_grad.ravel(), Y_grad.ravel()
+            # color_mag_flat = color_mag.ravel()
+            
+            # # Map colors
+            # colors = colormap(norm(color_mag_flat))
+            
+            # # Plot gradient vectors using quiver
+            # ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors, 
+            #         zorder=1, alpha=0.7)
+            
+            # # Add colorbar
+            # sm = cm.ScalarMappable(cmap=colormap, norm=norm)  # Create a ScalarMappable
+            # sm.set_array([])  # Empty array to link with the colorbar
+            # cbar = fig.colorbar(sm, ax=ax, orientation='vertical')  # Add colorbar
+            # cbar.set_label('Gradient Magnitude [a.u.]', fontsize = 18)  # Label the colorbar
+            # # cbar.set_ticks(cbar.get_ticks())
+            # cbar.set_ticklabels(np.round(cbar.get_ticks(),1), fontsize = 15)  # Update the tick labels
+        
+            # Set plot limits
+            ax[1].set_xlabel('X [a.u.]', fontsize=15)
+            # ax[1].set_ylabel('Y [a.u.]', fontsize=15)
+            
+            ax[1].hlines(0, minx, maxx, color='black', linestyle='--', linewidth=3)
+            ax[1].hlines(self.wall, minx, maxx, color='black', linestyle='--', linewidth=3)
+            ax[1].set_yticks([np.round(x, 1) for x in np.linspace(0, self.wall, 5)])
+            xticks = ax[1].get_xticks()
+            ax[1].set_xticks(xticks)
+            ax[1].set_xticklabels(ax[1].get_xticks(), fontsize=12)
+            
+            ax[1].set_xlim([minx-0.1, maxx+0.1])
+            ax[1].set_ylim([miny-0.1, maxy+0.1])
+            ax[1].set_title(title, fontsize=15)  
+            # Now we plot the gradient in the first plot
+            
+            ############ Plot gradient ###########
+            
+            grad_y = np.linspace(0, self.wall, 100)
+            
+            # Calculate the gradient values at each point
+            funct = np.array([self.Gradient.calculate_gradient([0, y]) for y in grad_y])
+            
+            # Extract the x-component (magnitude to be visualized)
+            colors_grad = funct[:, 1]  
+            
+            # Normalize the gradient values for the colormap
+            norm = mcolors.Normalize(vmin=0, vmax=1)
+            
+            
+            # Create line segments for color mapping
+            points = np.array([colors_grad, grad_y]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            
+            # Create a LineCollection and set colors based on the magnitude
+            lc = LineCollection(segments, colors = 'tab:purple',norm=norm, linewidth=2)
+            lc.set_array(colors_grad)  # Map colors to the x-component magnitude
+            
+            # Add the LineCollection to the plot
+            ax[0].add_collection(lc)
+            
+            # Adjust plot limits and labels
+            # if consttant make it 
+    
             ax[0].set_xlim([np.min(colors_grad) - 0.01, np.max(colors_grad) + 0.1])
             ax[0].set_xticks([0, 0.5, 1])
             ax[0].set_xticklabels([0, 0.5, 1], fontsize=15)
             ax[0].set_ylim([0, self.wall])
-        else:
-            ax[0].set_xlim([0.9, 1.1])
-            ax[0].set_xticks([0.9, 1, 1.1])
-            ax[0].set_xticklabels([0.9, 1, 1.1], fontsize=15)
-
-            ax[0].set_ylim([0, self.wall])
-        ax[0].set_xlabel('Magnitude [a.u.]', fontsize = 18)
-        ax[0].set_ylabel('Y [a.u.]', fontsize = 18)
-        ax[0].invert_xaxis()  # Invert x-axis if needed
-        ax[0].set_title('Gradient', fontsize = 19)
-        ax[0].set_yticklabels(ax[0].get_yticks(), fontsize=15)
-        plt.show()  # Display the plot
-
+            ax[0].set_xlabel('Magnitude [a.u.]', fontsize = 15)
+            ax[0].set_ylabel('Y [a.u.]', fontsize = 15)
+            ax[0].invert_xaxis()  # Invert x-axis if needed
+            ax[0].set_title('Gradient', fontsize = 15)
+            ax[0].set_yticklabels(ax[0].get_yticks(), fontsize=12)
+        if show:
+            plt.show()  # Display the plot
+        # fig.tight_layout()
+        return fig, ax
 
     def plot_sprout_description(self):
         fig, ax = plt.subplots(5, 3, figsize=(20, 20))

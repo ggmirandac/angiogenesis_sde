@@ -48,21 +48,21 @@ class LinearGradient(Gradient):
     def __init__(self, a0, xa, wall ):
         '''
         a0: Concentration at source
-        
+
         xa: x coordinate of the source
-        
+
         min_gradient: minimum gradient
         '''
         super().__init__(a0)
         self.xa = xa
-        
-        self.wall = wall 
+
+        self.wall = wall
     def calculate_gradient(self, x):
         x_grad = 0
         y_grad = x[1] * self.initial_grad / self.wall
-        
+
         return np.array([x_grad, y_grad]) / self.initial_grad
-        
+
 class ExponentialGradient(Gradient):
     def __init__(self, a0, xa, wall):
         super().__init__(a0)
@@ -75,18 +75,24 @@ class ExponentialGradient(Gradient):
         y_grad = A * (1 - np.exp(-x[1]*B))/self.initial_grad
         return np.array([x_grad, y_grad])
 
-        
-        
-        
+
+
+
 class AngioSimulation:
 
     def __init__(self, n_reps, Hurst_index, n_steps, dtau, delta,
                  mode='Simulate',
                  Grad=ConstantGradient(0.01),
-                 only_ht = True,
                  xa = [0, 10],
                  wall=None,  # y coord of wall
                  ):
+
+        '''
+        mode = 'Simulate' or 'HitTime' or 'SimulateAndHit'
+        - Simulate: generate sprouts
+        - HitTime: generate hit times
+        - SimulateAndHit: generates both
+        '''
         self.n_reps = n_reps
         self.H = Hurst_index
         self.n_steps = n_steps
@@ -95,7 +101,6 @@ class AngioSimulation:
         self.mode = mode
         self.Gradient = Grad
         self.xa = np.array(xa)
-        self.only_ht = only_ht # true -> store all the history, else only hitting time
         # storage_of_sprouts
         self.x_storage = {}
         self.v_storage = {}
@@ -103,7 +108,7 @@ class AngioSimulation:
 
         # storage of hiting_times
 
-        self.hit_times = [] 
+        self.hit_times = []
 
         self.wall = wall
         if mode == "HitTime":
@@ -124,7 +129,7 @@ class AngioSimulation:
         xi = np.array([0, 0])
         vi = np.array([0, 0])
         dW = np.zeros((n_steps, 2))
-        # by the definition in the documentation if T = 0 and size = size, the interval of time is 
+        # by the definition in the documentation if T = 0 and size = size, the interval of time is
         # defined as 1, therefore is consistent with the definition of multiplying by dtau ** H
         dW[:, 0] = DaviesHarteFBmGenerator().generate_fGn(
             H, size=n_steps) * dtau ** H
@@ -139,23 +144,23 @@ class AngioSimulation:
             v_chem = delta * Gradient.calculate_gradient(xi) * np.sin(np.abs(phi/2)) * dtau
             v_descriptions[step + 1, :] = np.array(
                 [v_res[0], v_res[1], v_rand[0], v_rand[1], v_chem[0], v_chem[1]])
-            
+
             # print(v_chem)
-            
+
             # define
             # last step
             xi_1 = np.copy(xi)
-            
+
             xi = xi + vi * dtau
             hit_lower_wall = False
             if xi[1] < 0:
                 xi = np.array([xi[0], 0])
-                # now we have to redifine in the last step to apply to the 
+                # now we have to redifine in the last step to apply to the
                 # calculations for the next step
-                # we have to 
+                # we have to
                 # definition of velocity in the step step-1
-                vi = (xi - xi_1) / dtau 
-            
+                vi = (xi - xi_1) / dtau
+
             vi = vi + v_res + v_rand + v_chem
             x_history[step + 1, :] = xi
             v_history[step + 1, :] = vi
@@ -163,8 +168,8 @@ class AngioSimulation:
             theta = AngioSimulation.theta_ang(xi, xi_1)
             xa = np.array([xi[0], wall])
             phi = AngioSimulation.phi_ang(xi, xa, theta)
-            
-           
+
+
             if xi[1] >= wall:
                 crop_index = step+1
                 x_history = x_history[:crop_index, :]
@@ -180,7 +185,7 @@ class AngioSimulation:
         if only_ht:
             return None
         else:
-            return x_history, v_history, v_descriptions , None    
+            return x_history, v_history, v_descriptions , None
 
     @staticmethod
     def theta_ang(xi, xi_1):
@@ -196,8 +201,8 @@ class AngioSimulation:
 
         num =((xa[0] - xi[0]) * np.cos(theta)) + ((xa[1] - xi[1]) * np.sin(theta))
         den = np.sqrt((xa[0] - xi[0]) ** 2 + (xa[1] - xi[1]) ** 2)
-    
-    
+
+
         return np.arccos(num/den)
 
     def simulate(self, n_jobs = 1):
@@ -205,7 +210,7 @@ class AngioSimulation:
         # Simulate: generate sprouts
         # HitTime: generate hit times
         # SimulateAndHit: generates both
-        
+
         if self.mode == 'Simulate':
             # init_time = time.time()
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
@@ -213,7 +218,7 @@ class AngioSimulation:
 
             for i, result in enumerate(results):
                 self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'], _ = result
-                
+
                 # delta_time = (time.time() - init_time)
                 # minutes, seconds = divmod(delta_time, 60)
 
@@ -224,52 +229,66 @@ class AngioSimulation:
             results = Parallel(n_jobs = n_jobs, backend='loky', verbose=1)(delayed(AngioSimulation.sprout_generation)(
                 self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, True
             ) for _ in range(self.n_reps))
-            
+
             self.hit_times = results
-        
+
         if self.mode == 'SimulateAndHit':
 
 
             results = Parallel(n_jobs=n_jobs)(delayed(AngioSimulation.sprout_generation)(
                 self.H, self.n_steps, self.dtau, self.delta, self.Gradient, self.xa, self.wall, False) for _ in range(self.n_reps))
-            
+
             for i, result in enumerate(results):
 
                 self.x_storage[f'ID - {i}'], self.v_storage[f'ID - {i}'], self.vd_storage[f'ID + {i}'], ht = result
 
                 self.hit_times.append(ht)
 
+    def get_trajectories(self):
+        '''
+        Get the trajectory of a collection of sprouts
+        '''
+        if len(self.x_storage.keys()) == 0:
+            raise Exception("No sprouts saved")
+        else:
+            list_of_trajectories = []
+            for sprout in self.x_storage.values():
+                list_of_trajectories.append(sprout)
+            return list_of_trajectories
+
+
+
 
     def plot_sprouts(self, title, show = True):
         if self.Gradient.__class__.__name__ == 'ConstantGradient':
-            
+
             fig, ax = plt.subplots(figsize=(8,8), dpi=600)
-            
+
             # ax[0].set_size_inches(2, 10)
             # Initialize min/max variables
             minx, maxx = np.inf, -np.inf
             miny, maxy = 0, self.wall
-            
+
             ########### Plot each sprout ###########
             for sprout in self.x_storage.values():
                 minx = min(minx, np.min(sprout[:, 0]))
                 maxx = max(maxx, np.max(sprout[:, 0]))
                 ax.plot(sprout[:, 0], sprout[:, 1], zorder=3, linewidth=2)
                 ax.scatter(sprout[-1, 0], sprout[-1, 1])
-            
+
             # # Create meshgrid for gradient
             # X_coords = np.linspace(minx, maxx, 10)
             # Y_coords = np.linspace(miny, maxy, 10)
             # X, Y = np.meshgrid(X_coords, Y_coords)
-            
+
             # # Calculate gradient vectors
             # X_grad, Y_grad = np.zeros_like(X), np.zeros_like(Y)
             # for i in range(10):
             #     for j in range(10):
             #         X_grad[i, j], Y_grad[i, j] = self.Gradient.calculate_gradient([X[i, j], Y[i, j]])
-            
+
             # # Calculate magnitude and normalize
-            
+
             # if self.Gradient.__class__.__name__ == 'ConstantGradient':
             #     color_mag = np.ones_like(X_grad)
             #     norm = mcolors.Normalize(vmin=0, vmax=1)
@@ -277,19 +296,19 @@ class AngioSimulation:
             #     color_mag = np.sqrt(X_grad**2 + Y_grad**2)
             #     norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
             # colormap = cm.plasma  # Choose the colormap
-            
+
             # # Flatten arrays for quiver
             # X_flat, Y_flat = X.ravel(), Y.ravel()
             # U_flat, V_flat = X_grad.ravel(), Y_grad.ravel()
             # color_mag_flat = color_mag.ravel()
-            
+
             # # Map colors
             # colors = colormap(norm(color_mag_flat))
-            
+
             # # Plot gradient vectors using quiver
-            # ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors, 
+            # ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors,
             #         zorder=1, alpha=0.7)
-            
+
             # # Add colorbar
             # sm = cm.ScalarMappable(cmap=colormap, norm=norm)  # Create a ScalarMappable
             # sm.set_array([])  # Empty array to link with the colorbar
@@ -297,11 +316,11 @@ class AngioSimulation:
             # cbar.set_label('Gradient Magnitude [a.u.]', fontsize = 18)  # Label the colorbar
             # # cbar.set_ticks(cbar.get_ticks())
             # cbar.set_ticklabels(np.round(cbar.get_ticks(),1), fontsize = 15)  # Update the tick labels
-        
+
             # Set plot limits
             ax.set_xlabel('X [a.u.]', fontsize=15)
             # ax[1].set_ylabel('Y [a.u.]', fontsize=15)
-            
+
             ax.hlines(0, minx, maxx, color='black', linestyle='--', linewidth=3)
             ax.hlines(self.wall, minx, maxx, color='black', linestyle='--', linewidth=3)
             ax.set_yticks([np.round(x, 1) for x in np.linspace(0, self.wall, 5)])
@@ -309,42 +328,42 @@ class AngioSimulation:
             xticks = ax.get_xticks()
             ax.set_xticks(xticks)
             ax.set_xticklabels(ax.get_xticks(), fontsize=12)
-            
+
             ax.set_xlim([minx-0.1, maxx+0.1])
             ax.set_ylim([miny-0.1, maxy+0.1])
-            ax.set_title(title, fontsize=15)  
+            ax.set_title(title, fontsize=15)
             # Now we plot the gradient in the first plot
-            
-            
-        else: 
+
+
+        else:
             fig, ax = plt.subplots(1, 2 ,figsize=(9,8), dpi=600,
                                 gridspec_kw={'width_ratios': [1, 5], 'wspace': 0.2}, sharey=True)
-            
+
             # ax[0].set_size_inches(2, 10)
             # Initialize min/max variables
             minx, maxx = np.inf, -np.inf
             miny, maxy = 0, self.wall
-            
+
             ########### Plot each sprout ###########
             for sprout in self.x_storage.values():
                 minx = min(minx, np.min(sprout[:, 0]))
                 maxx = max(maxx, np.max(sprout[:, 0]))
                 ax[1].plot(sprout[:, 0], sprout[:, 1], zorder=3, linewidth=2)
                 ax[1].scatter(sprout[-1, 0], sprout[-1, 1])
-            
+
             # # Create meshgrid for gradient
             # X_coords = np.linspace(minx, maxx, 10)
             # Y_coords = np.linspace(miny, maxy, 10)
             # X, Y = np.meshgrid(X_coords, Y_coords)
-            
+
             # # Calculate gradient vectors
             # X_grad, Y_grad = np.zeros_like(X), np.zeros_like(Y)
             # for i in range(10):
             #     for j in range(10):
             #         X_grad[i, j], Y_grad[i, j] = self.Gradient.calculate_gradient([X[i, j], Y[i, j]])
-            
+
             # # Calculate magnitude and normalize
-            
+
             # if self.Gradient.__class__.__name__ == 'ConstantGradient':
             #     color_mag = np.ones_like(X_grad)
             #     norm = mcolors.Normalize(vmin=0, vmax=1)
@@ -352,19 +371,19 @@ class AngioSimulation:
             #     color_mag = np.sqrt(X_grad**2 + Y_grad**2)
             #     norm = mcolors.Normalize(vmin=np.min(color_mag), vmax=np.max(color_mag))
             # colormap = cm.plasma  # Choose the colormap
-            
+
             # # Flatten arrays for quiver
             # X_flat, Y_flat = X.ravel(), Y.ravel()
             # U_flat, V_flat = X_grad.ravel(), Y_grad.ravel()
             # color_mag_flat = color_mag.ravel()
-            
+
             # # Map colors
             # colors = colormap(norm(color_mag_flat))
-            
+
             # # Plot gradient vectors using quiver
-            # ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors, 
+            # ax[1].quiver(X_flat, Y_flat, U_flat, V_flat, color=colors,
             #         zorder=1, alpha=0.7)
-            
+
             # # Add colorbar
             # sm = cm.ScalarMappable(cmap=colormap, norm=norm)  # Create a ScalarMappable
             # sm.set_array([])  # Empty array to link with the colorbar
@@ -372,51 +391,51 @@ class AngioSimulation:
             # cbar.set_label('Gradient Magnitude [a.u.]', fontsize = 18)  # Label the colorbar
             # # cbar.set_ticks(cbar.get_ticks())
             # cbar.set_ticklabels(np.round(cbar.get_ticks(),1), fontsize = 15)  # Update the tick labels
-        
+
             # Set plot limits
             ax[1].set_xlabel('X [a.u.]', fontsize=15)
             # ax[1].set_ylabel('Y [a.u.]', fontsize=15)
-            
+
             ax[1].hlines(0, minx, maxx, color='black', linestyle='--', linewidth=3)
             ax[1].hlines(self.wall, minx, maxx, color='black', linestyle='--', linewidth=3)
             ax[1].set_yticks([np.round(x, 1) for x in np.linspace(0, self.wall, 5)])
             xticks = ax[1].get_xticks()
             ax[1].set_xticks(xticks)
             ax[1].set_xticklabels(ax[1].get_xticks(), fontsize=12)
-            
+
             ax[1].set_xlim([minx-0.1, maxx+0.1])
             ax[1].set_ylim([miny-0.1, maxy+0.1])
-            ax[1].set_title(title, fontsize=15)  
+            ax[1].set_title(title, fontsize=15)
             # Now we plot the gradient in the first plot
-            
+
             ############ Plot gradient ###########
-            
+
             grad_y = np.linspace(0, self.wall, 100)
-            
+
             # Calculate the gradient values at each point
             funct = np.array([self.Gradient.calculate_gradient([0, y]) for y in grad_y])
-            
+
             # Extract the x-component (magnitude to be visualized)
-            colors_grad = funct[:, 1]  
-            
+            colors_grad = funct[:, 1]
+
             # Normalize the gradient values for the colormap
             norm = mcolors.Normalize(vmin=0, vmax=1)
-            
-            
+
+
             # Create line segments for color mapping
             points = np.array([colors_grad, grad_y]).T.reshape(-1, 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
-            
+
             # Create a LineCollection and set colors based on the magnitude
             lc = LineCollection(segments, colors = 'tab:purple',norm=norm, linewidth=2)
             lc.set_array(colors_grad)  # Map colors to the x-component magnitude
-            
+
             # Add the LineCollection to the plot
             ax[0].add_collection(lc)
-            
+
             # Adjust plot limits and labels
-            # if consttant make it 
-    
+            # if consttant make it
+
             ax[0].set_xlim([np.min(colors_grad) - 0.01, np.max(colors_grad) + 0.1])
             ax[0].set_xticks([0, 0.5, 1])
             ax[0].set_xticklabels([0, 0.5, 1], fontsize=15)
@@ -437,7 +456,7 @@ class AngioSimulation:
         # plot_of_velocities
         # DONE: add All velocities # DONE
         max_time = 0
-        min_time = np.inf   
+        min_time = np.inf
         for val in self.vd_storage.values():
             # unpack values
             v_resx = val[:, 0]
@@ -680,13 +699,13 @@ class AngioSimulation:
     def save_hittimes(self, file_name):
         hitting_times = self.hit_times
 
-         
+
         # create pandas dataframe from the data
         hit_pd = pd.DataFrame(hitting_times, columns=['Hitting Time'])
         # sprouts_pd = pd.DataFrame(sprouts, columns=['Sprouts_x', 'Sprouts_y'])
         # velocities_pd = pd.DataFrame(velocities, columns=['Velocities_x', 'Velocities_y'])
-        hit_pd.to_csv(f'{file_name}.csv', index=False)
-        
+        hit_pd.to_csv(f'{file_name}', index=False)
+
 \
 # %% Main body
 if __name__ == "__main__":

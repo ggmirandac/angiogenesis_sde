@@ -1,7 +1,7 @@
 #%% Running
 # from angiosde import AngioSimulation, ConstantGradient, LinearGradient
-from angiosde_limit import AngioSimulation, ConstantGradient, LinearGradient, ExponentialGradient
-from os.path import join 
+from angiofsde import AngioSimulation, ConstantGradient, LinearGradient, ExponentialGradient
+from os.path import join
 import numpy as np
 import matplotlib.pyplot as plt
 # parameters
@@ -34,8 +34,8 @@ for Grad in gradients:
         A_sim = AngioSimulation(n_reps, h, n_steps, dtau, delta,
                             xa=[0, 25],
                             mode="HitTime",
-                            wall=25, 
-                            only_ht=True, 
+                            wall=25,
+                            only_ht=True,
                             Grad=Grad)
         A_sim.simulate(n_jobs=10)
 
@@ -44,7 +44,7 @@ for Grad in gradients:
         file_name = join('personal_comp', f'{name}_hit_time_{h_str}')
         A_sim.save_hittimes(file_name)
         print(f'Hit time for Hurst index {h} saved')
-        # file_name = 'hit_time_' + str(h) 
+        # file_name = 'hit_time_' + str(h)
         # A_sim.save_data(file_name)
 
       #%%

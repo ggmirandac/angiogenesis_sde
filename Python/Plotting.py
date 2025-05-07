@@ -1,7 +1,7 @@
 #%% Running
 # from angiosde import AngioSimulation, ConstantGradient, LinearGradient
-from angiosde_limit import AngioSimulation, ConstantGradient, LinearGradient, ExponentialGradient
-from os.path import join 
+from angiofsde import AngioSimulation, ConstantGradient, LinearGradient, ExponentialGradient
+from os.path import join
 import numpy as np
 import matplotlib.pyplot as plt
 # parameters
@@ -25,8 +25,8 @@ for h in list_H:
     A_sim = AngioSimulation(n_reps, h, n_steps, dtau, delta,
                         xa=[0, wall],
                         mode="Simulate",
-                        wall=wall, 
-                        only_ht=True, 
+                        wall=wall,
+                        only_ht=True,
                         Grad=constant_gradient)
     A_sim.simulate(n_jobs=10)
     A_sim.plot_sprouts('Sprout path H =' + str(h)+' Constant Gradient')

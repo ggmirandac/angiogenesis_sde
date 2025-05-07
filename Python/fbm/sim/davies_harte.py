@@ -2,6 +2,7 @@ from .fbm_generator import FBmGeneratorInterface
 from .fbm_generator import BiFBmGeneratorInterface
 from .fbm_generator import MFBmGeneratorInterface
 import numpy as np
+import os #
 
 from fbm import utils
 
@@ -15,7 +16,7 @@ def closest_pow2(n:int) -> int:
     result = 1
     while result < n:
         result <<= 1
-    
+
     return result
 
 class DaviesHarteFBmGenerator(FBmGeneratorInterface):
@@ -52,20 +53,28 @@ class DaviesHarteFBmGenerator(FBmGeneratorInterface):
         """
         N = closest_pow2(size)
         if self.__cached_H != H or len(self.__processed_eigs) < 2*size:
-            circulant_row1 = np.ndarray(N << 1)
+            if not os.path.exists(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy'):  # en vez de calcular la matriz covarianza y sus eigenvalores en cada sampleo de fBm, la guardamos la primera vez en un archivo y la cargamos para los siguientes sampleos
+                circulant_row1 = np.ndarray(N << 1) # este es el caso de que el sampleo sea el primero para este valor de H.
 
-            circulant_row1[:N+1] = np.array(
-                [utils.rho(i, H) for i in range(N+1)]
-            )
-            circulant_row1[-N+1:] = circulant_row1[N-1:0:-1]
+                circulant_row1[:N+1] = np.array(
+                    [utils.rho(i, H) for i in range(N+1)]
+                )
+                circulant_row1[-N+1:] = circulant_row1[N-1:0:-1]
 
-            self.__processed_eigs = np.fft.fft(circulant_row1)
-            self.__processed_eigs = np.abs(self.__processed_eigs)
-            self.__processed_eigs = np.sqrt(self.__processed_eigs)
-            
+                self.__processed_eigs = np.fft.fft(circulant_row1)
+                self.__processed_eigs = np.abs(self.__processed_eigs)
+                self.__processed_eigs = np.sqrt(self.__processed_eigs)
+
+                self.__cached_H = H
+                print('Calculo la matriz de covarianza y sus eigenvalores')
+                os.makedirs("lk_matrices", exist_ok=True)
+                np.save(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy', self.__processed_eigs) # guardamos los eigenvalores de la matriz covarianza
+
+            self.__processed_eigs = np.load(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy') # en este caso los eigenvalores ya estan precalculados, por lo que simplemente los cargamos
             self.__cached_H = H
 
-        v1 = np.random.standard_normal(N-1)
+
+        v1 = np.random.standard_normal(N-1) # despues todo sigue igual
         v2 = np.random.standard_normal(N-1)
 
         w = np.ndarray(2*N, dtype=complex)
@@ -104,10 +113,10 @@ class DaviesHarteBiFBmGenerator(BiFBmGeneratorInterface):
         ----------
         H1: float
             Hurst parameter. Should be in range `(0, 1)`.
-        
+
         H2: float
             Hurst parameter. Should be in range `(0, 1)`.
-        
+
         rho: float
             Correlation coefficient. Should be in range `[0, 1]`.
 
@@ -152,7 +161,7 @@ class DaviesHarteMFBmGenerator(MFBmGeneratorInterface):
         ----------
         Hs: np.ndarray
             Hurst parameters. Should be in range `(0, 1)**p`.
-        
+
         rho: np.ndarray
             Correlation coefficients. Should be in range `[0, 1]**(p*p)`.
 
@@ -190,7 +199,7 @@ class DaviesHarteMFBmGenerator(MFBmGeneratorInterface):
                     if i != j:
                         B[:,j,i] = np.conjugate(B[:,i,j])
 
-            self.__cached_transformation = np.ndarray((N << 1, p, p), 
+            self.__cached_transformation = np.ndarray((N << 1, p, p),
                 dtype=complex)
             for i in range(len(self.__cached_transformation)):
                 e, L = np.linalg.eig(B[i])
@@ -208,7 +217,7 @@ class DaviesHarteMFBmGenerator(MFBmGeneratorInterface):
         w[:,N] = np.random.standard_normal(p) / np.sqrt(2*N)
         w[:,1:N] = (v1 + 1j*v2) / np.sqrt(4*N)
         w[:,-N+1:] = np.conjugate(w[:,N-1:0:-1])
-        w = np.einsum('...ij,j...->i...', self.__cached_transformation, w, 
+        w = np.einsum('...ij,j...->i...', self.__cached_transformation, w,
                 optimize='optimal')
 
         ts = np.ndarray((p, size))
@@ -230,16 +239,16 @@ if __name__ == '__main__':
     fBm_generator_chi_square_test(DaviesHarteFBmGenerator(), H=0.75)
     fBm_generator_chi_square_test(DaviesHarteFBmGenerator(), H=0.9)
 
-    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(), 
+    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(),
         H1=0.1, H2=0.1, rho=0
     )
-    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(), 
+    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(),
         H1=0.2, H2=0.2, rho=0
     )
-    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(), 
+    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(),
         H1=0.4, H2=0.25, rho=0
     )
-    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(), 
+    bfBm_generator_chi_square_test(DaviesHarteBiFBmGenerator(),
         H1=0.5, H2=0.1, rho=0
     )
     mfbm = DaviesHarteMFBmGenerator()

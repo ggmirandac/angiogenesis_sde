@@ -35,7 +35,8 @@ Manifest.toml
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -645,3 +646,18 @@ MigrationBackup/
 .gitignore
 
 /.vscode
+
+# all type of images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.pdf
+*.svg
+
+# vscode related files
+.vscode/
+
+#numpy
+*.npy

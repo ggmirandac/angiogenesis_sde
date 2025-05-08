@@ -9,7 +9,7 @@ import scipy as sp
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm  # Import colormap handling
 import matplotlib.colors as mcolors  # For normalization
-from fbm.sim.davies_harte import DaviesHarteFBmGenerator
+from fbm.sim.davies_harte import *
 from fbm.sim.cholesky import CholeskyFBmGenerator
 import time
 from matplotlib.collections import LineCollection
@@ -25,8 +25,42 @@ from tqdm import tqdm
 import warnings
 
 
-class Gradient:
+def warmup_eigenvalues(list_h, n_steps):
+    '''
+    Function to calculate the eigenvalues of the covariance matrix
+    for the circulant matrix of the fBm process.
+    ---
+    Parameters:
+    list_h: list of Hurst index
+        List of Hurst index to calculate the eigenvalues
+    n_steps: int
+        Number of steps to calculate the eigenvalues
+    '''
+    N = closest_pow2(n_steps)
+    for h in list_h:
+        eigenval = np.array([1])
+        if not os.path.exists(f'lk_matrices/lk_matrix_H{h:.3f}_N{int(N)}.npy'):
+            circulant_row1 = np.ndarray(N << 1) # este es el caso de que el sampleo sea el primero para este valor de H.
 
+            circulant_row1[:N+1] = np.array(
+                [utils.rho(i, h) for i in range(N+1)]
+            )
+            circulant_row1[-N+1:] = circulant_row1[N-1:0:-1]
+
+            eigenval = np.fft.fft(circulant_row1)
+            eigenval = np.abs(eigenval)
+            eigenval =  np.sqrt(eigenval)
+            print(f'Calculo la matriz de covarianza y sus eigenvalores para H={h:.3f} y N={int(N)}')
+            os.makedirs("lk_matrices", exist_ok=True)
+            np.save(f'lk_matrices/lk_matrix_H{h:.3f}_N{int(N)}.npy', eigenval) # guardamos los eigenvalores de la matriz covarianza
+
+
+
+class Gradient:
+    """
+    Base class for gradient calculation.
+
+    """
     def __init__(self, a0, *args, **kwargs):
         self.initial_grad = a0
 
@@ -35,10 +69,29 @@ class Gradient:
 
 
 class ConstantGradient(Gradient):
+    """
+    Constant gradient class.
+    This class represents a constant gradient in the y-direction.
+    """
     def __init__(self, a0):
         super().__init__(a0)
 
     def calculate_gradient(self, x):
+        """
+        Calculate the gradient at a given point.
+        Parameters
+        ----------
+        x: array-like
+            The coordinates at which to calculate the gradient.
+            The first element is the x-coordinate, and the second element is the y-coordinate.
+        Returns
+        -------
+        x_grad: float
+            The x-component of the gradient.
+        y_grad: float
+            The y-component of the gradient.
+
+        """
         x_grad = 0
         y_grad = self.initial_grad / self.initial_grad
 
@@ -58,6 +111,20 @@ class LinearGradient(Gradient):
 
         self.wall = wall
     def calculate_gradient(self, x):
+        '''
+        Calculate the gradient at a given point.
+        Parameters
+        ----------
+        x: array-like
+            The coordinates at which to calculate the gradient.
+            The first element is the x-coordinate, and the second element is the y-coordinate.
+        Returns
+        -------
+        x_grad: float
+            The x-component of the gradient.
+        y_grad: float
+            The y-component of the gradient.
+        '''
         x_grad = 0
         y_grad = x[1] * self.initial_grad / self.wall
 
@@ -69,6 +136,21 @@ class ExponentialGradient(Gradient):
         self.xa = xa
         self.wall = wall
     def calculate_gradient(self, x):
+        '''
+        Calculate the gradient at a given point.
+        Parameters
+        ----------
+        x: array-like
+            The coordinates at which to calculate the gradient.
+            The first element is the x-coordinate, and the second element is the y-coordinate.
+        Returns
+        -------
+        x_grad: float
+            The x-component of the gradient.
+        y_grad: float
+            The y-component of the gradient.
+
+        '''
         x_grad = 0
         A = self.initial_grad
         B = np.log(1-self.initial_grad/A*0.9)/(-self.wall/2)

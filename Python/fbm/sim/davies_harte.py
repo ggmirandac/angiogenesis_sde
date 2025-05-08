@@ -53,25 +53,24 @@ class DaviesHarteFBmGenerator(FBmGeneratorInterface):
         """
         N = closest_pow2(size)
         if self.__cached_H != H or len(self.__processed_eigs) < 2*size:
-            if not os.path.exists(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy'):  # en vez de calcular la matriz covarianza y sus eigenvalores en cada sampleo de fBm, la guardamos la primera vez en un archivo y la cargamos para los siguientes sampleos
-                circulant_row1 = np.ndarray(N << 1) # este es el caso de que el sampleo sea el primero para este valor de H.
+            # the following part was outsourced to an auxiliary function
+            # if not os.path.exists(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy'):  # en vez de calcular la matriz covarianza y sus eigenvalores en cada sampleo de fBm, la guardamos la primera vez en un archivo y la cargamos para los siguientes sampleos
+            #     circulant_row1 = np.ndarray(N << 1) #
 
-                circulant_row1[:N+1] = np.array(
-                    [utils.rho(i, H) for i in range(N+1)]
-                )
-                circulant_row1[-N+1:] = circulant_row1[N-1:0:-1]
+            #     circulant_row1[:N+1] = np.array(
+            #         [utils.rho(i, H) for i in range(N+1)]
+            #     )
+            #     circulant_row1[-N+1:] = circulant_row1[N-1:0:-1]
 
-                self.__processed_eigs = np.fft.fft(circulant_row1)
-                self.__processed_eigs = np.abs(self.__processed_eigs)
-                self.__processed_eigs = np.sqrt(self.__processed_eigs)
-
-                self.__cached_H = H
-                print('Calculo la matriz de covarianza y sus eigenvalores')
-                os.makedirs("lk_matrices", exist_ok=True)
-                np.save(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy', self.__processed_eigs) # guardamos los eigenvalores de la matriz covarianza
-
-            self.__processed_eigs = np.load(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy') # en este caso los eigenvalores ya estan precalculados, por lo que simplemente los cargamos
-            self.__cached_H = H
+            #     self.__processed_eigs = np.fft.fft(circulant_row1)
+            #     self.__processed_eigs = np.abs(self.__processed_eigs)
+            #     self.__processed_eigs = np.sqrt(self.__processed_eigs)
+            #     self.__cached_H = H
+            #     print(f'Calculo la matriz de covarianza y sus eigenvalores para H={H:.3f} y N={int(N)}')
+            #     os.makedirs("lk_matrices", exist_ok=True)
+            #     np.save(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy', self.__processed_eigs) #
+            self.__cached_H = H # we save the Hurst parameter to avoid
+            self.__processed_eigs = np.load(f'lk_matrices/lk_matrix_H{H:.3f}_N{int(N)}.npy') # the eigenvalues are already calculated and saved in a file
 
 
         v1 = np.random.standard_normal(N-1) # despues todo sigue igual

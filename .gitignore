@@ -661,3 +661,6 @@ MigrationBackup/
 
 #numpy
 *.npy
+
+# datasets personal try
+*/personal_comp/*

@@ -788,32 +788,31 @@ class AngioSimulation:
         # velocities_pd = pd.DataFrame(velocities, columns=['Velocities_x', 'Velocities_y'])
         hit_pd.to_csv(f'{file_name}', index=False)
 
-\
+
 # %% Main body
 if __name__ == "__main__":
-    n_reps = 10
-    Hurst_index = 0.95
-    n_steps = 30_000
-    dtau = 1e-3
-    delta = 0.95  # Done: review the delta effect over the simulation
-    mode = 'Simulate'
-    A_sim = AngioSimulation(n_reps, Hurst_index, n_steps, dtau, delta,
-                            xa=[0, 10_000],
-                            mode=mode,
-                            wall=50, )
+    n_reps = 1
 
-    # Note
-        # The more hurst index increases the less the delta imports
-        # Done: Analyze the distributions of the same hurst index at different delta coefficient
-    A_sim.simulate(n_jobs=1)
-    if mode == 'Simulate':
-        A_sim.plot_sprouts()
-        # A_sim.plot_sprout_description()
-        #A_sim.plot_autocorrelation()
+    # Hurst_index = 0.5
+    n_steps = 5_000 # number of steps in the simulation
+    dtau = .1 # delta t adimentional
+    delta = 1  #chemotactic bias coefficient
 
-    elif mode == 'HitTime':
-        A_sim.plot_hit()
-        A_sim.plot_sprouts()
-        A_sim.plot_sprout_description()
-        A_sim.save_data()
+    # definition of gradients
+    linear_gradient = LinearGradient(0.1, [0, 25], 25)
+    constant_gradient = ConstantGradient(0.1)
+    exponential_gradient = ExponentialGradient(0.1, [0, 25], 25)
+
+    list_H =  [0.5, 0.55, 0.60, 0.65, 0.7, 0.75] # list of Hurst index
+    gradients = [linear_gradient, constant_gradient, exponential_gradient] # list of gradients
+    warmup_eigenvalues(list_H, n_steps) # warmpup start of the eigenvalues
+    for h in list_H:
+        for grad in gradients:
+            # simulation of the sprout
+            sprout = AngioSimulation(n_reps, h, n_steps, dtau, delta,
+                                     mode='Simulate', Grad=grad,
+                                     xa=[0, 25], wall=25)
+            sprout.simulate()
+            sprout.plot_sprouts(f'Simulation of Sprouts - H = {h} - {grad.__class__.__name__}')
+
 # %%

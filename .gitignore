@@ -664,3 +664,6 @@ MigrationBackup/
 
 # datasets personal try
 */personal_comp/*
+/Python/linear_h_wall_cluster
+/Python/exponential_h_wall_cluster
+/Python/constant_h_wall_cluster

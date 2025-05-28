@@ -126,9 +126,9 @@ class LinearGradient(Gradient):
             The y-component of the gradient.
         '''
         x_grad = 0
-        y_grad = x[1] * self.initial_grad / self.wall
+        y_grad = x[1] / self.wall
 
-        return np.array([x_grad, y_grad]) / self.initial_grad
+        return np.array([x_grad, y_grad])
 
 class ExponentialGradient(Gradient):
     def __init__(self, a0, xa, wall):
@@ -152,9 +152,8 @@ class ExponentialGradient(Gradient):
 
         '''
         x_grad = 0
-        A = self.initial_grad
-        B = np.log(1-self.initial_grad/A*0.9)/(-self.wall/2)
-        y_grad = A * (1 - np.exp(-x[1]*B))/self.initial_grad
+        B = np.log(1-0.9)/(-self.wall/2)
+        y_grad = (1 - np.exp(-x[1]*B))
         return np.array([x_grad, y_grad])
 
 

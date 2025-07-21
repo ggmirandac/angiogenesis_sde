@@ -667,3 +667,8 @@ MigrationBackup/
 /Python/linear_h_wall_cluster
 /Python/exponential_h_wall_cluster
 /Python/constant_h_wall_cluster
+
+.vscode/
+.__pycache__/
+*.pyc
+*.pyo
